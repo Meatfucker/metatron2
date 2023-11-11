@@ -33,7 +33,6 @@ async def wordgen(message, prompt, model, tokenizer, systemprompt="You are an AI
     response_index = generated_text.rfind("ASSISTANT:")
     llmresponse = generated_text[response_index + len("ASSISTANT:"):].strip()
     await savehistory(generated_text, message, systemprompt)
-    print(wordgen_user_history)
     return(llmresponse)
     
 async def savehistory(generated_text, message, systemprompt):

@@ -51,8 +51,9 @@ class MetatronClient(discord.Client):
                 await clearhistory(message)
             else:
                 response = await wordgen(message, stripped_message, self.wordgenmodel, self.wordgentokenizer, SETTINGS["wordsystemprompt"][0], SETTINGS["wordnegprompt"][0])
-                truncatedresponse = response[:1500]
-                await message.channel.send(response)
+                chunks = [response[i:i+1500] for i in range(0, len(response), 1500)]
+                for chunk in chunks:
+                    await message.channel.send(chunk)
             self.wordgen_queue.task_done()
 
     async def on_message(self, message):
