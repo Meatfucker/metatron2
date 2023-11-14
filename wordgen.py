@@ -1,16 +1,17 @@
 #wordgen.py - Functions for LLM capabilities
-
-from transformers import LlamaForCausalLM, LlamaConfig, LlamaTokenizer
-import os
-import sys
-import time
-import torch
+import asyncio
 import io
 import json
-import asyncio
+import os
+os.environ["TQDM_DISABLE"] = "1"
+import sys
+import time
 from loguru import logger
 import discord
+import torch
+from transformers import LlamaForCausalLM, LlamaConfig, LlamaTokenizer
 
+logger.remove()
 wordgen_user_history = {}
 
 async def load_llm():
@@ -18,12 +19,12 @@ async def load_llm():
     model = LlamaForCausalLM.from_pretrained("liuhaotian/llava-v1.5-13b", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto") #load model
     model = model.to_bettertransformer() #Use bettertransformers for more speed
     model.eval()
-    logger.success("Model Loaded.")
+    logger.success("LLM Model Loaded.")
     tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-13b") #load tokenizer
-    logger.success("Tokenizer Loaded.")
+    logger.success("LLM Tokenizer Loaded.")
     return model, tokenizer
     
-async def wordgen(message, prompt, model, tokenizer, systemprompt="You are an AI", negativeprompt=""):
+async def wordgen(message, prompt, model, tokenizer, systemprompt, negativeprompt):
     '''function for generating responses with the llm'''
     userhistory = await loadhistory(message) #load the users past history to include in the prompt
     if message.author.id not in wordgen_user_history or not wordgen_user_history[message.author.id]:
@@ -56,24 +57,24 @@ async def savehistory(generated_text, message, systemprompt):
     wordgen_user_history[message.author.id].append(messagepair) #add the message to the history
     
 async def loadhistory(message):
-    
+    '''loads a users history into a single string and returns it'''
     if message.author.id in wordgen_user_history and wordgen_user_history[message.author.id]:
         combined_history = ''.join(wordgen_user_history[message.author.id])
         return combined_history
     
 async def clearhistory(message):
-    
+    '''deletes a users history'''
     if message.author.id in wordgen_user_history:
         del wordgen_user_history[message.author.id]
 
 async def deletelasthistory(message):
-    
+    '''deletes the last question/answer pair from a users history'''
     if message.author.id in wordgen_user_history:
         wordgen_user_history[message.author.id].pop()
 
 async def inserthistory(userid, prompt, llmprompt, systemprompt):
-
-    if userid not in wordgen_user_history:
+    '''inserts a question/answer pair into a users history'''
+    if userid not in wordgen_user_history: #if they have no history, include the system prompt
         wordgen_user_history[userid] = []
         injectedhistory = f'{systemprompt}\n\nUSER:{prompt}\nASSISTANT:{llmprompt}</s>\n'
     else:
@@ -83,35 +84,30 @@ async def inserthistory(userid, prompt, llmprompt, systemprompt):
 class Wordgenbuttons(discord.ui.View):
     """Class for the ui buttons on speakgen"""
 
-    def __init__(self, wordgen_queue, userid, message, strippedmessage):
+    def __init__(self, generation_queue, userid, message, strippedmessage):
         super().__init__()
         self.timeout = None
-        self.wordgen_queue = wordgen_queue
+        self.generation_queue = generation_queue
         self.userid = userid
         self.message = message
         self.strippedmessage = strippedmessage
 
     @discord.ui.button(label='Reroll last reply', emoji="🎲", style=discord.ButtonStyle.grey)
-    @logger.catch   
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rerolls last reply"""
         if self.userid == interaction.user.id:
             await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
-            await self.wordgen_queue.put(('wordgendeletelast', self.message, self.strippedmessage))
-            await self.wordgen_queue.put(('wordgengenerate', self.message, self.strippedmessage))
-            
+            await self.generation_queue.put(('wordgendeletelast', self.message, self.strippedmessage))
+            await self.generation_queue.put(('wordgengenerate', self.message, self.strippedmessage))
 
     @discord.ui.button(label='Delete last reply', emoji="❌", style=discord.ButtonStyle.grey)
-    @logger.catch
     async def delete_message(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Deletes message"""
         if self.userid == interaction.user.id:
-            await self.wordgen_queue.put(('wordgendeletelast', self.message, self.strippedmessage))
+            await self.generation_queue.put(('wordgendeletelast', self.message, self.strippedmessage))
             await interaction.response.send_message("Last question/answer pair deleted", ephemeral=True, delete_after=5)
-            
-         
+
     @discord.ui.button(label='Show History', emoji="📜", style=discord.ButtonStyle.grey)
-    @logger.catch   
     async def dm_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Prints history to user"""
         if self.userid == interaction.user.id:
@@ -121,14 +117,10 @@ class Wordgenbuttons(discord.ui.View):
             else:
                 await interaction.response.send_message("No History", ephemeral=True, delete_after=5)
             logger.info("WORDGEN Show History.")
-         
+
     @discord.ui.button(label='Wipe History', emoji="🤯", style=discord.ButtonStyle.grey)
-    @logger.catch   
     async def delete_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Deletes history"""
         if self.userid == interaction.user.id:
-            await self.wordgen_queue.put(('wordgenforget', self.message, self.strippedmessage))
+            await self.generation_queue.put(('wordgenforget', self.message, self.strippedmessage))
             await interaction.response.send_message("History wiped", ephemeral=True, delete_after=5)
-
-
-

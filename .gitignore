@@ -1,2 +1,4 @@
 settings.cfg
 __pycache__
+voices/*
+!voices/
