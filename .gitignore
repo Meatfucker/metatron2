@@ -2,3 +2,7 @@ settings.cfg
 __pycache__
 voices/*
 !voices/putvoiceshere.txt
+models/*
+!models/putmodelshere.txt
+loras/*
+!loras/putlorashere.txt
