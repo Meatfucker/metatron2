@@ -26,13 +26,13 @@ async def load_voices():
 
 async def speakgenerate(prompt, voicefile):
     """Function to generate speech"""
-    logger.info("SPEAKGEN Generate Started")
+    logger.debug("SPEAKGEN Generate Started")
     if voicefile != None:
         voicechoice = f'voices/{voicefile}'
         audio_array = await asyncio.to_thread(generate_audio, prompt, history_prompt=voicechoice)
     else:
         audio_array = await asyncio.to_thread(generate_audio, prompt)
-    logger.success("SPEAKGEN Generate Completed")
+    logger.debug("SPEAKGEN Generate Completed")
     wav_io = io.BytesIO()
     write_wav(wav_io, SAMPLE_RATE, audio_array)
     wav_io.seek(0)

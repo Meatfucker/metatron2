@@ -35,11 +35,11 @@ async def wordgen(message, prompt, model, tokenizer, systemprompt, negativepromp
     input_ids = input_ids.to('cuda') #send tokens to gpu
     negative_input_ids = tokenizer.encode(negativeprompt, return_tensors="pt") #turn negative prompt into tokens
     negative_input_ids = negative_input_ids.to('cuda') #negative tokens to gpu
-    logger.info("WORDGEN Generate Started.")
+    logger.debug("WORDGEN Generate Started.")
     with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False): #enable flash attention for faster inference
         output = await asyncio.to_thread(model.generate, input_ids, max_length=4096, temperature=0.2, do_sample=True, guidance_scale=2, negative_prompt_ids=negative_input_ids) #run the inference in a thread so it doesnt block the bots execution
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True) #turn the returned tokens into string
-    logger.success("WORDGEN Generate Completed")
+    logger.debug("WORDGEN Generate Completed")
     response_index = generated_text.rfind("ASSISTANT:") #this and the next line extract the bots response for posting to the channel
     llmresponse = generated_text[response_index + len("ASSISTANT:"):].strip()
     await savehistory(generated_text, message, systemprompt) #save the response to the users history
