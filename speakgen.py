@@ -21,7 +21,8 @@ async def load_voices():
     voices = []
     voices_list = os.listdir("voices/")
     for voice_file in voices_list:
-        voices.append(voice_file)
+        if voice_file.endswith(".npz"):
+            voices.append(voice_file)
     return voices
 
 async def speakgenerate(prompt, voicefile):

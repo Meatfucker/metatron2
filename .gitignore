@@ -1,4 +1,4 @@
 settings.cfg
 __pycache__
 voices/*
-!voices/
+!voices/putvoiceshere.txt

@@ -1,5 +1,5 @@
 from diffusers import DiffusionPipeline, DPMSolverMultistepScheduler
-from diffusers.utils import make_image_grid
+from diffusers.utils import logging
 import torch
 from loguru import logger
 import torchvision
@@ -9,6 +9,8 @@ import math
 import io
 from compel import Compel
 import re
+
+logging.set_verbosity_error()
 logger.remove()
 
 
