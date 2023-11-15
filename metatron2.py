@@ -48,6 +48,7 @@ class MetatronClient(discord.Client):
         self.speakgenvoices = None
         self.voice_choices = []
         self.imagepipeline = None
+        self.compel_proc = None
     
     async def setup_hook(self):
         if SETTINGS["enableword"][0] == "True":
@@ -64,7 +65,7 @@ class MetatronClient(discord.Client):
         
         if SETTINGS["enableimage"][0] == "True":
             logger.info("Loading SD")
-            self.imagepipeline = await load_sd()
+            self.imagepipeline, self.compel_proc = await load_sd()
                         
         self.loop.create_task(client.process_queue()) #start queue
         await self.tree.sync() #sync commands to discord
@@ -118,7 +119,7 @@ class MetatronClient(discord.Client):
             if SETTINGS["enableimage"][0] == "True":
                 if action == 'imagegenerate':
                     prompt, channel, batch_size = args[1:4]
-                    generatedimage = await imagegenerate(self.imagepipeline, prompt, batch_size)
+                    generatedimage = await imagegenerate(self.imagepipeline, self.compel_proc, prompt, batch_size)
                     truncatedprompt = prompt[:1000]
                     await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(generatedimage, filename=f"{truncatedprompt}.png"))
                     self.imagegenreply_logger = logger.bind(prompt=prompt)

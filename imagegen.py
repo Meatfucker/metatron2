@@ -7,15 +7,30 @@ from PIL import Image
 import asyncio
 import math
 import io
-
+from compel import Compel
+import re
 logger.remove()
 
-@logger.catch
-def get_inputs(batch_size, prompt):
-    generator = [torch.Generator("cuda").manual_seed(i) for i in range(batch_size)]
-    prompts = batch_size * [prompt]
+
+
+
+def format_prompt_weights(input_string):
+    matches = re.findall(r'\((.*?)\:(.*?)\)', input_string)
+    for match in matches:
+        words = match[0].split()
+        number = match[1]
+        replacement = ' '.join(f"({word}){number}" for word in words)
+        input_string = input_string.replace(f"({match[0]}:{match[1]})", replacement)
+    return input_string
     
-    return {"prompt": prompts, "generator": generator}
+@logger.catch
+def get_inputs(batch_size, prompt, compel_proc):
+    generator = [torch.Generator("cuda").manual_seed(i) for i in range(batch_size)]
+    prompt = format_prompt_weights(prompt)
+    prompts = batch_size * [prompt]
+    prompt_embeds = compel_proc(prompts)
+    return {"prompt_embeds": prompt_embeds, "generator": generator}
+    
 
 @logger.catch
 async def load_sd():
@@ -24,12 +39,13 @@ async def load_sd():
     pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)
     pipeline = pipeline.to("cuda")
     logger.success("SD Model Loaded.")
-    return pipeline
+    compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder)
+    return pipeline, compel_proc
 
 @logger.catch
-async def imagegenerate(pipeline, prompt, batch_size):
+async def imagegenerate(pipeline, compel_proc, prompt, batch_size):
     logger.debug("IMAGEGEN Generate Started.")
-    images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt), num_inference_steps=20)
+    images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt, compel_proc), num_inference_steps=20)
     logger.debug("IMAGEGEN Generate Finished.")
     width, height = images.images[0].size
     num_images_per_row = math.ceil(math.sqrt(len(images.images)))
