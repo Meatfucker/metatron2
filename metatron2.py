@@ -15,9 +15,9 @@ import discord
 from discord import app_commands
 from loguru import logger
 from typing import Optional, Literal
-from wordgen import load_llm, llm_generate, clear_history, Wordgenbuttons, delete_last_history, insert_history
-from speakgen import load_bark, speak_generate, Speakgenbuttons, load_voices
-from imagegen import load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list, load_loras_list, load_sd_lora
+from wordgen import Wordgenbuttons, load_llm, llm_generate, clear_history, delete_last_history, insert_history
+from speakgen import Speakgenbuttons, load_bark, speak_generate, load_voices
+from imagegen import Imagegenbuttons, load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list, load_loras_list, load_sd_lora
 import torch
 import gc
 
@@ -165,7 +165,7 @@ class MetatronClient(discord.Client):
                         self.sd_loaded_embeddings = []
                         sd_need_reload = False
                     truncatedprompt = prompt[:1000] #this avoids file name length issues
-                    await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"))
+                    await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, seed, steps, width, height))
                     self.imagegenreply_logger = logger.bind(user=username, userid=userid, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel, batchsize=batch_size, seed=seed, steps=steps, width=width, height=height)
                     self.imagegenreply_logger.success("IMAGEGEN Replied")
                     with torch.no_grad(): #clear gpu memory cache

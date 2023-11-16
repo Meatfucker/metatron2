@@ -5,6 +5,7 @@ import math
 import os
 import re
 import random
+import gc
 import torch
 import torchvision
 from loguru import logger
@@ -13,6 +14,8 @@ from diffusers import DiffusionPipeline, StableDiffusionPipeline, DPMSolverMulti
 from diffusers.utils import logging as difflogging
 from transformers.utils import logging as translogging
 from compel import Compel
+import discord
+from discord import app_commands
 
 difflogging.set_verbosity_error() #Attempt to silence noisy diffusers log messages
 translogging.set_verbosity_error() #Attempt to silence noisy transformers log messages
@@ -89,6 +92,9 @@ async def load_sd(model = None, pipeline = None):
     pipeline = pipeline.to("cuda") #push the pipeline to gpu
     logger.success("SD Model Loaded.")
     compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder) #create the compel processor object for the pipeline
+    with torch.no_grad(): #clear gpu memory cache
+        torch.cuda.empty_cache()
+    gc.collect() #clear python memory
     return pipeline, compel_proc
     
 async def load_sd_lora(pipeline, prompt):
@@ -105,6 +111,9 @@ async def load_sd_lora(pipeline, prompt):
             pipeline.fuse_lora(lora_scale=loraweight)
         new_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', prompt)
         sd_need_reload = True
+        with torch.no_grad(): #clear gpu memory cache
+            torch.cuda.empty_cache()
+        gc.collect() #clear python memory
     return pipeline, new_prompt, sd_need_reload
     
 async def load_ti(pipeline, prompt, loaded_image_embeddings):
@@ -146,4 +155,51 @@ async def make_image_grid(images):
     composite_image.save(composite_image_bytes, format='PNG')
     composite_image_bytes.seek(0)
     return composite_image_bytes
+    
+class Imagegenbuttons(discord.ui.View):
+    '''Class for the ui buttons on speakgen'''
+
+    def __init__(self, generation_queue, prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, seed, steps, width, height):
+        super().__init__()
+        self.timeout = None #Disables the timeout on the buttons
+        self.generation_queue = generation_queue
+        self.userid = userid
+        self.prompt = prompt
+        self.channel = channel
+        self.sdmodel = sdmodel
+        self.batch_size = batch_size
+        self.username = username
+        self.userid = userid
+        self.negativeprompt = negativeprompt
+        self.seed = seed
+        self.steps = steps
+        self.width = width
+        self.height = height
+    
+    @discord.ui.button(label='Reroll', emoji="🎲", style=discord.ButtonStyle.grey)
+    async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
+        '''Rerolls last reply'''
+        if self.userid == interaction.user.id:
+            await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
+            await self.generation_queue.put(('imagegenerate', self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, interaction.user.id, self.negativeprompt, self.seed, self.steps, self.width, self.height))
+    
+    @discord.ui.button(label='Mail', emoji="✉", style=discord.ButtonStyle.grey)
+    async def dmimage(self, interaction: discord.Interaction, button: discord.ui.Button):
+        '''DMs sound'''
+        await interaction.response.send_message("DM'ing image...", ephemeral=True, delete_after=5)
+        sound_bytes = await interaction.message.attachments[0].read()
+        dm_channel = await interaction.user.create_dm()
+        truncated_filename = self.prompt[:1000]
+        await dm_channel.send(file=discord.File(io.BytesIO(sound_bytes), filename=f'{truncated_filename}.png'))
+        speak_dm_logger = logger.bind(user=interaction.user.name, userid=interaction.user.id)
+        speak_dm_logger.success("IMAGEGEN DM successful")
+
+    @discord.ui.button(label='Delete', emoji="❌", style=discord.ButtonStyle.grey)
+    async def delete_message(self, interaction: discord.Interaction, button: discord.ui.Button):
+        '''Deletes message'''
+        if self.userid == interaction.user.id:
+            await interaction.message.delete()
+        await interaction.response.send_message("Image deleted.", ephemeral=True, delete_after=5)
+        speak_delete_logger = logger.bind(user=interaction.user.name, userid=interaction.user.id)
+        speak_delete_logger.info("IMAGEGEN Delete")
     
