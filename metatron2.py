@@ -47,6 +47,7 @@ class MetatronClient(discord.Client):
         self.llm_model = None #this holds the transformers llm model object
         self.llm_tokenizer = None #this holds the llm tokenizer object
         self.llm_view_last_message = {} #variable to track wordview buttons so there is only one set per user at a time
+        self.llm_chunks_messages = {} #variable to track the body of the last reply in case it needs to be deleted for a reroll.
         self.generation_queue = asyncio.Queue() #the process queue object
         self.speak_voices_list = None #This is a list of available voice files
         self.speak_voice_choices = [] # The choices object for the discord speakgen ui
@@ -107,16 +108,27 @@ class MetatronClient(discord.Client):
                     llm_clear_history_logger.success("WORDGEN History Cleared.")
                 
                 elif action == 'wordgengenerate':
-                    message, stripped_message = args[1:3]
+                    message, stripped_message, reroll = args[1:4]
                     response = await llm_generate(message, stripped_message, self.llm_model, self.llm_tokenizer, SETTINGS["wordsystemprompt"][0], SETTINGS["wordnegprompt"][0]) #generate the text
                     if message.author.id in self.llm_view_last_message: #check if there are an existing set of llm buttons for the user and if so, delete them
                         try:
                             await self.llm_view_last_message[message.author.id].delete()
                         except discord.NotFound:
                             pass  # Message not found, might have been deleted already
+                    if message.author.id in self.llm_chunks_messages:
+                        for chunk_message in self.llm_chunks_messages[message.author.id]:
+                            if reroll == True:
+                                try:
+                                    await chunk_message.delete()
+                                except discord.NotFound:
+                                    pass  # Message not found, might have been deleted already
+                        del self.llm_chunks_messages[message.author.id]
                     chunks = [response[i:i+1500] for i in range(0, len(response), 1500)] #split the reply into 1500 char pieces so as not to bump up against the discord message length limit
+                    if message.author.id not in self.llm_chunks_messages:
+                        self.llm_chunks_messages[message.author.id] = []
                     for chunk in chunks:
-                        await message.channel.send(chunk)
+                        chunk_message = await message.channel.send(chunk)
+                        self.llm_chunks_messages[message.author.id].append(chunk_message)
                     new_message = await message.channel.send(view=Wordgenbuttons(self.generation_queue, message.author.id, message, stripped_message)) #send the message with the llm buttons
                     self.llm_view_last_message[message.author.id] = new_message #track the message id of the last set of llm buttons for each user
                     self.llm_reply_logger = logger.bind(user=message.author.name, userid=message.author.id, prompt=stripped_message, reply=response)
@@ -185,7 +197,7 @@ class MetatronClient(discord.Client):
             if "forget" in stripped_message.lower():
                 await self.generation_queue.put(('wordgenforget', message))
             else:
-                await self.generation_queue.put(('wordgengenerate', message, stripped_message))
+                await self.generation_queue.put(('wordgengenerate', message, stripped_message, False))
         #await self.process_commands(message)
    
 client = MetatronClient(intents=discord.Intents.all()) #client intents

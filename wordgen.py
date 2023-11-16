@@ -101,7 +101,7 @@ class Wordgenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
             await self.generation_queue.put(('wordgendeletelast', self.message, self.stripped_message))
-            await self.generation_queue.put(('wordgengenerate', self.message, self.stripped_message))
+            await self.generation_queue.put(('wordgengenerate', self.message, self.stripped_message, True))
 
     @discord.ui.button(label='Delete last reply', emoji="❌", style=discord.ButtonStyle.grey)
     async def delete_message(self, interaction: discord.Interaction, button: discord.ui.Button):
