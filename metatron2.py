@@ -17,7 +17,7 @@ from loguru import logger
 from typing import Optional, Literal
 from wordgen import load_llm, llm_generate, clear_history, Wordgenbuttons, delete_last_history, insert_history
 from speakgen import load_bark, speak_generate, Speakgenbuttons, load_voices
-from imagegen import load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list
+from imagegen import load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list, load_loras_list, load_sd_lora
 import torch
 import gc
 
@@ -57,7 +57,9 @@ class MetatronClient(discord.Client):
         self.sd_loaded_embeddings = [] #The list of currently loaded image embeddings, needed to make diffusers not shit itself if you load the same one twice.
         self.sd_embeddings_list = None #List of available embeddings
         self.sd_embedding_choices = [] #The choices object for the discord imagegen embeddings ui
-    
+        self.sd_loras_list = None #list of available loras
+        self.sd_loras_choices = [] #the choices object for the discord imagegen loras ui
+        
     async def setup_hook(self):
         if SETTINGS["enableword"][0] == "True":
             logger.info("Loading LLM")
@@ -66,7 +68,6 @@ class MetatronClient(discord.Client):
         if SETTINGS["enablespeak"][0] == "True":
             logger.info("Loading Bark")
             await load_bark() #load the sound generation model
-            logger.info("Loading Voices")
             self.speak_voices_list = await load_voices() #get the list of available voice files to build the discord interface with
             for voice in self.speak_voices_list:
                 self.speak_voice_choices.append(app_commands.Choice(name=voice, value=voice))
@@ -77,6 +78,9 @@ class MetatronClient(discord.Client):
             self.sd_model_list = await load_models_list() #get the list of available models to build the discord interface with
             for model in self.sd_model_list:
                 self.sd_model_choices.append(app_commands.Choice(name=model, value=model))
+            self.sd_loras_list = await load_loras_list() #get the list of available loras to build the interface with
+            for lora in self.sd_loras_list:
+                self.sd_loras_choices.append(app_commands.Choice(name=lora, value=lora))
             self.sd_embeddings_list = await load_embeddings_list() #get the list of available embeddings to biuld the discord interface with
             for embedding in self.sd_embeddings_list:
                 self.sd_embedding_choices.append(app_commands.Choice(name=embedding, value=embedding))
@@ -140,11 +144,17 @@ class MetatronClient(discord.Client):
             if SETTINGS["enableimage"][0] == "True":
                 if action == 'imagegenerate':
                     prompt, channel, sdmodel, batch_size, username, userid = args[1:7]
+                    sd_need_reload = False
                     if sdmodel != None: #if a model has been selected, create and load a fresh pipeline and compel processor
                         self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
                         self.sd_loaded_embeddings = []
+                    self.sd_pipeline, prompt, sd_need_reload = await load_sd_lora(self.sd_pipeline, prompt)
                     self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt, self.sd_loaded_embeddings) #check for embeddings and apply them
                     generatedimage = await sd_generate(self.sd_pipeline, self.sd_compel_processor, prompt, sdmodel, batch_size) #generate the image request
+                    if sd_need_reload == True:
+                        self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
+                        self.sd_loaded_embeddings = []
+                        sd_need_reload = False
                     truncatedprompt = prompt[:1000] #this avoids file name length issues
                     await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(generatedimage, filename=f"{truncatedprompt}.png"))
                     self.imagegenreply_logger = logger.bind(user=username, userid=userid, prompt=prompt, model=sdmodel, batchsize=batch_size)
@@ -180,6 +190,7 @@ async def impersonate(interaction: discord.Interaction, userprompt: str, llmprom
     
 @client.slash_command_tree.command()
 @app_commands.choices(voicechoice=client.speak_voice_choices)
+@app_commands.rename(userprompt='prompt', voicechoice='voice')
 async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoice: Optional[app_commands.Choice[str]] = None):
     '''Slash command that generates speech'''
     if SETTINGS["enablespeak"][0] != "True":
@@ -195,7 +206,9 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
 @client.slash_command_tree.command()
 @app_commands.choices(modelchoice=client.sd_model_choices)
 @app_commands.choices(embeddingchoice=client.sd_embedding_choices)
-async def imagegen(interaction: discord.Interaction, userprompt: str, modelchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = 1, embeddingchoice: Optional[app_commands.Choice[str]] = None):
+@app_commands.choices(lorachoice=client.sd_loras_choices)
+@app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding')
+async def imagegen(interaction: discord.Interaction, userprompt: str, modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = 1):
     '''Slash command that generates images'''
     if SETTINGS["enableimage"][0] != "True":
                 await interaction.response.send_message("Image generation is currently disabled.")
@@ -204,6 +217,8 @@ async def imagegen(interaction: discord.Interaction, userprompt: str, modelchoic
         modelselection = None
     else:
         modelselection = modelchoice.name
+    if lorachoice != None:
+        userprompt = f"{userprompt}<lora:{lorachoice.name}:1>"
     if embeddingchoice != None:
         userprompt = f"{userprompt}{embeddingchoice.name}"
     await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)

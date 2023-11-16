@@ -44,6 +44,16 @@ async def load_models_list():
             models.append(models_file)
     return models
 
+async def load_loras_list():
+    '''Get list of models for user interface'''
+    loras = []
+    loras_list = os.listdir("loras/")
+    for loras_file in loras_list:
+        if loras_file.endswith(".safetensors"):
+            token_name = f"{loras_file[:-12]}"
+            loras.append(token_name)
+    return loras
+    
 async def load_embeddings_list():
     '''Get list of models for user interface'''
     embeddings = []
@@ -65,10 +75,26 @@ async def load_sd(model = None, pipeline = None):
         pipeline = DiffusionPipeline.from_pretrained(model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True) #This loads a huggingface based model, is the initial loading model for now.
     pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config) #This is the sampler, I may make it configurable in the future
     pipeline = pipeline.to("cuda") #push the pipeline to gpu
-    logger.debug("SD Model Loaded.")
+    logger.success("SD Model Loaded.")
     compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder) #create the compel processor object for the pipeline
     return pipeline, compel_proc
-  
+    
+async def load_sd_lora(pipeline, prompt):
+    ''' This loads a lora and applies it to a pipeline'''
+    sd_need_reload = False
+    new_prompt = prompt
+    loramatches = re.findall(r'<lora:([^:]+):([\d.]+)>', prompt)
+    if loramatches:
+        for match in loramatches:
+            loraname, loraweight = match
+            loraweight = float(loraweight)  # Convert y to a float if needed
+            lorafilename = f'{loraname}.safetensors'
+            pipeline.load_lora_weights("./loras", weight_name=lorafilename)
+            pipeline.fuse_lora(lora_scale=loraweight)
+        new_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', prompt)
+        sd_need_reload = True
+    return pipeline, new_prompt, sd_need_reload
+    
 async def load_ti(pipeline, prompt, loaded_image_embeddings):
     '''this checks the prompt for textual inversion embeddings and loads them if needed, keeping track of used ones so it doesnt try to load the same one twice'''
     matches = re.findall(r'<(.*?)>', prompt)
@@ -86,6 +112,7 @@ async def sd_generate(pipeline, compel_proc, prompt, model, batch_size):
     '''this generates the request, tiles the images, and returns them as a single image'''
     logger.debug("IMAGEGEN Generate Started.")
     images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt, compel_proc), num_inference_steps=20) #do the generate in a thread so as not to lock up the bot client
+    pipeline.unload_lora_weights()
     logger.debug("IMAGEGEN Generate Finished.")
     composite_image_bytes = await make_image_grid(images)
     return composite_image_bytes
