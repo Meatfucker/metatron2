@@ -97,12 +97,15 @@ class MetatronClient(discord.Client):
         while True:
             args = await self.generation_queue.get()
             action = args[0] #first argument passed to queue should always be the action to do
+            
             if SETTINGS["enableword"][0] == "True":
+                
                 if action == 'wordgenforget':
                     message = args[1]
                     await clear_history(message)
                     llm_clear_history_logger = logger.bind(user=message.author.name, userid=message.author.id)
                     llm_clear_history_logger.success("WORDGEN History Cleared.")
+                
                 elif action == 'wordgengenerate':
                     message, stripped_message = args[1:3]
                     response = await llm_generate(message, stripped_message, self.llm_model, self.llm_tokenizer, SETTINGS["wordsystemprompt"][0], SETTINGS["wordnegprompt"][0]) #generate the text
@@ -121,16 +124,20 @@ class MetatronClient(discord.Client):
                     with torch.no_grad(): #clear torch gpu cache, freeing up vram
                         torch.cuda.empty_cache()
                     gc.collect() #clear python garbage, freeing up ram (and maybe vram?)
+                
                 elif action == 'wordgendeletelast':
                     await delete_last_history(message)
                     self.llm_delete_last_logger=logger.bind(user=message.author.name, userid=message.author.id)
                     self.llm_delete_last_logger.success("WORDGEN Reply Deleted.")
+                
                 elif action == 'wordgenimpersonate':
                     userid, prompt, llmprompt, username = args[1:5]
                     await insert_history(userid, prompt, llmprompt, SETTINGS["wordsystemprompt"][0])
                     self.wordgenreply_logger = logger.bind(user=username, userid=userid, prompt=prompt, llmprompt=llmprompt)
                     self.wordgenreply_logger.success("WORDGEN Impersonate.")
+            
             if SETTINGS["enablespeak"][0] == "True":
+                
                 if action == 'speakgengenerate':
                     prompt, channel, userid, voicefile, username = args[1:6]
                     wav_bytes_io = await speak_generate(prompt, voicefile) #this generates the audio
@@ -141,23 +148,25 @@ class MetatronClient(discord.Client):
                     with torch.no_grad(): #clear gpu memory cache
                         torch.cuda.empty_cache()
                     gc.collect() #clear python memory
+            
             if SETTINGS["enableimage"][0] == "True":
+                
                 if action == 'imagegenerate':
-                    prompt, channel, sdmodel, batch_size, username, userid = args[1:7]
+                    prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, seed, steps, width, height = args[1:12]
                     sd_need_reload = False
                     if sdmodel != None: #if a model has been selected, create and load a fresh pipeline and compel processor
                         self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
                         self.sd_loaded_embeddings = []
                     self.sd_pipeline, prompt, sd_need_reload = await load_sd_lora(self.sd_pipeline, prompt)
                     self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt, self.sd_loaded_embeddings) #check for embeddings and apply them
-                    generatedimage = await sd_generate(self.sd_pipeline, self.sd_compel_processor, prompt, sdmodel, batch_size) #generate the image request
+                    generated_image = await sd_generate(self.sd_pipeline, self.sd_compel_processor, prompt, sdmodel, batch_size, negativeprompt, seed, steps, width, height) #generate the image request
                     if sd_need_reload == True:
                         self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
                         self.sd_loaded_embeddings = []
                         sd_need_reload = False
                     truncatedprompt = prompt[:1000] #this avoids file name length issues
-                    await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(generatedimage, filename=f"{truncatedprompt}.png"))
-                    self.imagegenreply_logger = logger.bind(user=username, userid=userid, prompt=prompt, model=sdmodel, batchsize=batch_size)
+                    await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"))
+                    self.imagegenreply_logger = logger.bind(user=username, userid=userid, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel, batchsize=batch_size, seed=seed, steps=steps, width=width, height=height)
                     self.imagegenreply_logger.success("IMAGEGEN Replied")
                     with torch.no_grad(): #clear gpu memory cache
                         torch.cuda.empty_cache()
@@ -170,6 +179,8 @@ class MetatronClient(discord.Client):
             if SETTINGS["enableword"][0] != "True":
                 await message.channel.send("LLM generation is currently disabled.")
                 return #check if LLM generation is enabled
+            if str(message.author.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
+                return  # Exit the function if the author is banned
             stripped_message = re.sub(r'<[^>]+>', '', message.content).lstrip() #this removes the user tag
             if "forget" in stripped_message.lower():
                 await self.generation_queue.put(('wordgenforget', message))
@@ -185,6 +196,8 @@ async def impersonate(interaction: discord.Interaction, userprompt: str, llmprom
     if SETTINGS["enableword"][0] != "True":
                 await interaction.response.send_message("LLM generation is currently disabled.")
                 return #check if LLM generation is enabled
+    if str(interaction.user.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
+                return  # Exit the function if the author is banned
     await client.generation_queue.put(('wordgenimpersonate', interaction.user.id, userprompt, llmprompt, interaction.user.name))
     await interaction.response.send_message(f'History inserted:\n User: {userprompt}\n LLM: {llmprompt}')
     
@@ -196,6 +209,8 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
     if SETTINGS["enablespeak"][0] != "True":
                 await interaction.response.send_message("Sound generation is currently disabled.")
                 return #check if sound generation is enabled
+    if str(interaction.user.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
+                return  # Exit the function if the author is banned
     if voicechoice == None:
         voiceselection = None
     else:
@@ -208,11 +223,13 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
 @app_commands.choices(embeddingchoice=client.sd_embedding_choices)
 @app_commands.choices(lorachoice=client.sd_loras_choices)
 @app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding')
-async def imagegen(interaction: discord.Interaction, userprompt: str, modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = 1):
+async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = 1, seed: Optional[int] = None, steps: Optional[int] = 25, width: Optional[int] = 512, height: Optional[int] = 512):
     '''Slash command that generates images'''
     if SETTINGS["enableimage"][0] != "True":
                 await interaction.response.send_message("Image generation is currently disabled.")
                 return #check if image generation is enabled
+    if str(interaction.user.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
+                return  # Exit the function if the author is banned
     if modelchoice == None:
         modelselection = None
     else:
@@ -222,6 +239,6 @@ async def imagegen(interaction: discord.Interaction, userprompt: str, modelchoic
     if embeddingchoice != None:
         userprompt = f"{userprompt}{embeddingchoice.name}"
     await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
-    await client.generation_queue.put(('imagegenerate', userprompt, interaction.channel, modelselection, batch_size, interaction.user.name, interaction.user.id))
+    await client.generation_queue.put(('imagegenerate', userprompt, interaction.channel, modelselection, batch_size, interaction.user.name, interaction.user.id, negativeprompt, seed, steps, width, height))
 
 client.run(SETTINGS["token"][0], log_handler=None) #run bot

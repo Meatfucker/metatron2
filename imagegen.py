@@ -1,9 +1,10 @@
-#speakgen.py - Functions for Bark capabilities
+#speakgen.py - Functions for stable diffusion capabilities
 import asyncio
 import io
 import math
 import os
 import re
+import random
 import torch
 import torchvision
 from loguru import logger
@@ -27,13 +28,24 @@ def format_prompt_weights(input_string):
         input_string = input_string.replace(f"({match[0]}:{match[1]})", replacement)
     return input_string
 
-def get_inputs(batch_size, prompt, compel_proc):
+def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
     '''This multiples the prompt by the batch size and creates the weight embeddings'''
-    generator = [torch.Generator("cuda").manual_seed(i) for i in range(batch_size)] #push the generators to gpu
+    if seed == None:
+        random_seed = random.randint(-2147483648, 2147483647)
+        generator = [torch.Generator("cuda").manual_seed(random.randint(-2147483648, 2147483647)) for i in range(batch_size)] #push the generators to gpu
+    else:
+        generator = [torch.Generator("cuda").manual_seed(seed + i) for i in range(batch_size)] #push the generators to gpu
     prompt = format_prompt_weights(prompt)
     prompts = batch_size * [prompt]
     prompt_embeds = compel_proc(prompts)
-    return {"prompt_embeds": prompt_embeds, "generator": generator}
+    if negativeprompt != None:
+        negativeprompt = format_prompt_weights(negativeprompt)
+        negativeprompts = batch_size * [negativeprompt]
+        negative_prompt_embeds = compel_proc(negativeprompts)
+        return {"prompt_embeds": prompt_embeds, "negative_prompt_embeds": negative_prompt_embeds, "generator": generator}
+    else:
+        return {"prompt_embeds": prompt_embeds, "generator": generator}
+    
   
 async def load_models_list():
     '''Get list of models for user interface'''
@@ -108,10 +120,12 @@ async def load_ti(pipeline, prompt, loaded_image_embeddings):
     return pipeline, loaded_image_embeddings
 
 
-async def sd_generate(pipeline, compel_proc, prompt, model, batch_size):
+async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negativeprompt, seed, steps, width, height):
     '''this generates the request, tiles the images, and returns them as a single image'''
     logger.debug("IMAGEGEN Generate Started.")
-    images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt, compel_proc), num_inference_steps=20) #do the generate in a thread so as not to lock up the bot client
+    generate_width = math.ceil(width / 8) * 8
+    generate_height = math.ceil(height / 8) * 8
+    images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed), num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
     pipeline.unload_lora_weights()
     logger.debug("IMAGEGEN Generate Finished.")
     composite_image_bytes = await make_image_grid(images)
