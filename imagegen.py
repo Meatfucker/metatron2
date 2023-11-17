@@ -16,11 +16,13 @@ from transformers.utils import logging as translogging
 from compel import Compel
 import discord
 from discord import app_commands
+from settings import SETTINGS
 
 difflogging.set_verbosity_error() #Attempt to silence noisy diffusers log messages
 translogging.set_verbosity_error() #Attempt to silence noisy transformers log messages
 logger.remove() #attempt to silence noisy library log messages
 
+@logger.catch
 def format_prompt_weights(input_string):
     '''This takes a prompt, checks for A1111 style prompt weightings, and converts them to compel style weightings'''
     matches = re.findall(r'\((.*?)\:(.*?)\)', input_string)
@@ -31,6 +33,19 @@ def format_prompt_weights(input_string):
         input_string = input_string.replace(f"({match[0]}:{match[1]})", replacement)
     return input_string
 
+@logger.catch
+def moderate_prompt(prompt, negativeprompt):
+    '''Removes all the words in the imagebannedwords setting from prompt, and adds all the words in imagenegprompt to negativeprompt'''
+    banned_words = SETTINGS["imagebannedwords"][0].split(',')
+    for word in banned_words:
+        prompt = prompt.replace(word.strip(), '')
+    imagenegprompt_string = SETTINGS["imagenegprompt"][0]
+    if negativeprompt == None:
+        negativeprompt = ""
+    negativeprompt = imagenegprompt_string + " " + negativeprompt
+    return prompt, negativeprompt
+
+@logger.catch
 def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
     '''This multiples the prompt by the batch size and creates the weight embeddings'''
     if seed == None:
@@ -38,18 +53,21 @@ def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
         generator = [torch.Generator("cuda").manual_seed(random.randint(-2147483648, 2147483647)) for i in range(batch_size)] #push the generators to gpu
     else:
         generator = [torch.Generator("cuda").manual_seed(seed + i) for i in range(batch_size)] #push the generators to gpu
+    prompt, negativeprompt = moderate_prompt(prompt, negativeprompt)
     prompt = format_prompt_weights(prompt)
     prompts = batch_size * [prompt]
-    prompt_embeds = compel_proc(prompts)
+    with torch.no_grad():
+        prompt_embeds = compel_proc(prompts)
     if negativeprompt != None:
         negativeprompt = format_prompt_weights(negativeprompt)
         negativeprompts = batch_size * [negativeprompt]
-        negative_prompt_embeds = compel_proc(negativeprompts)
+        with torch.no_grad():
+            negative_prompt_embeds = compel_proc(negativeprompts)
         return {"prompt_embeds": prompt_embeds, "negative_prompt_embeds": negative_prompt_embeds, "generator": generator}
     else:
         return {"prompt_embeds": prompt_embeds, "generator": generator}
     
-  
+@logger.catch  
 async def load_models_list():
     '''Get list of models for user interface'''
     models = []
@@ -59,6 +77,7 @@ async def load_models_list():
             models.append(models_file)
     return models
 
+@logger.catch
 async def load_loras_list():
     '''Get list of models for user interface'''
     loras = []
@@ -68,7 +87,8 @@ async def load_loras_list():
             token_name = f"{loras_file[:-12]}"
             loras.append(token_name)
     return loras
-    
+
+@logger.catch 
 async def load_embeddings_list():
     '''Get list of models for user interface'''
     embeddings = []
@@ -79,6 +99,7 @@ async def load_embeddings_list():
             embeddings.append(token_name)
     return embeddings
 
+@logger.catch
 async def load_sd(model = None, pipeline = None):
     '''Load a sd model, returning the pipeline object and the compel processor object for the pipeline'''
     logger.debug("SD Model Loading...")
@@ -96,13 +117,15 @@ async def load_sd(model = None, pipeline = None):
         torch.cuda.empty_cache()
     gc.collect() #clear python memory
     return pipeline, compel_proc
-    
+
+@logger.catch   
 async def load_sd_lora(pipeline, prompt):
     ''' This loads a lora and applies it to a pipeline'''
     sd_need_reload = False
     new_prompt = prompt
     loramatches = re.findall(r'<lora:([^:]+):([\d.]+)>', prompt)
     if loramatches:
+        logger.debug("LORA Loading...")
         for match in loramatches:
             loraname, loraweight = match
             loraweight = float(loraweight)  # Convert y to a float if needed
@@ -115,7 +138,8 @@ async def load_sd_lora(pipeline, prompt):
             torch.cuda.empty_cache()
         gc.collect() #clear python memory
     return pipeline, new_prompt, sd_need_reload
-    
+
+@logger.catch    
 async def load_ti(pipeline, prompt, loaded_image_embeddings):
     '''this checks the prompt for textual inversion embeddings and loads them if needed, keeping track of used ones so it doesnt try to load the same one twice'''
     matches = re.findall(r'<(.*?)>', prompt)
@@ -128,7 +152,7 @@ async def load_ti(pipeline, prompt, loaded_image_embeddings):
                 loaded_image_embeddings.append(match) #add the embedding to the current loaded list
     return pipeline, loaded_image_embeddings
 
-
+@logger.catch
 async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negativeprompt, seed, steps, width, height):
     '''this generates the request, tiles the images, and returns them as a single image'''
     logger.debug("IMAGEGEN Generate Started.")
@@ -140,6 +164,7 @@ async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negative
     composite_image_bytes = await make_image_grid(images)
     return composite_image_bytes
 
+@logger.catch
 async def make_image_grid(images):
     '''This takes a list of pil image objects and turns them into a grid'''
     width, height = images.images[0].size
@@ -159,7 +184,7 @@ async def make_image_grid(images):
 class Imagegenbuttons(discord.ui.View):
     '''Class for the ui buttons on speakgen'''
 
-    def __init__(self, generation_queue, prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, seed, steps, width, height):
+    def __init__(self, generation_queue, prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, seed, steps, width, height, metatron_client):
         super().__init__()
         self.timeout = None #Disables the timeout on the buttons
         self.generation_queue = generation_queue
@@ -171,18 +196,24 @@ class Imagegenbuttons(discord.ui.View):
         self.username = username
         self.userid = userid
         self.negativeprompt = negativeprompt
-        self.seed = seed
+        self.seed = None
         self.steps = steps
         self.width = width
         self.height = height
+        self.metatron_client = metatron_client
     
+    @logger.catch
     @discord.ui.button(label='Reroll', emoji="🎲", style=discord.ButtonStyle.grey)
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
         '''Rerolls last reply'''
         if self.userid == interaction.user.id:
-            await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
-            await self.generation_queue.put(('imagegenerate', self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, interaction.user.id, self.negativeprompt, self.seed, self.steps, self.width, self.height))
+            if await self.metatron_client.is_room_in_queue(self.userid) == True:
+                await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
+                await self.generation_queue.put(('imagegenerate', interaction.user.id, self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, self.negativeprompt, self.seed, self.steps, self.width, self.height))
+            else:
+                await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
     
+    @logger.catch
     @discord.ui.button(label='Mail', emoji="✉", style=discord.ButtonStyle.grey)
     async def dmimage(self, interaction: discord.Interaction, button: discord.ui.Button):
         '''DMs sound'''
@@ -194,6 +225,7 @@ class Imagegenbuttons(discord.ui.View):
         speak_dm_logger = logger.bind(user=interaction.user.name, userid=interaction.user.id)
         speak_dm_logger.success("IMAGEGEN DM successful")
 
+    @logger.catch
     @discord.ui.button(label='Delete', emoji="❌", style=discord.ButtonStyle.grey)
     async def delete_message(self, interaction: discord.Interaction, button: discord.ui.Button):
         '''Deletes message'''
