@@ -49,7 +49,7 @@ Go to the Bot tab on the Developer portal site and enable Privileged Gateway Int
 
 Go to the URL Generator on the OAuth2 tab and select the bot scope. Then select these permissions "Read Messages/View Channels, Send Messages, Manage Messages, Attach Files, Read Message History, Use Slash Commands" then use the link to invite the bot to your server. I may have missed one, if something is missing you can enable it later in server permissions
 
-### Install - Start here if you dont want conda or have already activated and are in your metatron conda env.
+### Install
 
 Download the repo  or `git clone https://github.com/Meatfucker/metatron2.git`
 
