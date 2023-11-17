@@ -8,35 +8,33 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * Stable Diffusion image generation
 * Bark audio generation
 
-<div>
-    <img src="assets/imagegenexample.png" alt="metatron2" style="margin-right: 20px;">
-    <img src="assets/imagegenexample2.png" alt="metatron2">
-</div>
+![metatron2](assets/imagegenexample.png)
+![metatron2](assets/imagegenexample2.png)
 
-*Stable Diffusion generation via /imagegen.
-*Supports standard safetensors format models.
-*A1111 style prompt weighting and LORA loading.
-*Single LORA can be loaded from the selection menu, or multiple can be invoked at once using the standard A1111 prompt syntax
-*Reroll, DM, and Delete buttons on gens for ease of interaction.
-*TI embedding support
-*Configurable banned word list and mandatory negative prompt options for moderation purposes.
+* Stable Diffusion generation via /imagegen.
+* Supports standard safetensors format models.
+* A1111 style prompt weighting and LORA loading.
+* Single LORA can be loaded from the selection menu, or multiple can be invoked at once using the standard A1111 prompt syntax
+* Reroll, DM, and Delete buttons on gens for ease of interaction.
+* TI embedding support
+* Configurable banned word list and mandatory negative prompt options for moderation purposes.
 
 ![metatron2](/assets/wordgenexample.png)
 
-*Can be directly chatted with by tagging it.
-*Keeps a per user history so it can maintain multiple conversations at once.
-*Replies can be rerolled.
-*History message pairs can be deleted via button or entire user history reset.
-*One shot prompt injection supported via /impersonate
-*Configurable LLM system prompt and negative prompt
+* Can be directly chatted with by tagging it.
+* Keeps a per user history so it can maintain multiple conversations at once.
+* Replies can be rerolled.
+* History message pairs can be deleted via button or entire user history reset.
+* One shot prompt injection supported via /impersonate
+* Configurable LLM system prompt and negative prompt
 
 ![metatron2](/assets/speakgenexample.png)
 
-*Speech, sound, and music generation via /speakgen
-*Can generate noises, emotions etc by enclosing word in []
-*Can generate music and singing by enclosing words in ♪
-*Using non-English words or characters will generally lead to that accent
-*Can create your own custom voice files and use them. See https://github.com/C0untFloyd/bark-gui for a project which can make metatron2 compatible voices.
+* Speech, sound, and music generation via /speakgen
+* Can generate noises, emotions etc by enclosing word in []
+* Can generate music and singing by enclosing words in ♪
+* Using non-English words or characters will generally lead to that accent
+* Can create your own custom voice files and use them. See https://github.com/C0untFloyd/bark-gui for a project which can make metatron2 compatible voices.
 
 
 ## INSTALLATION INSTRUCTIONS
@@ -50,16 +48,6 @@ Go to the Discord Developer portal and create a new bot and generate a token for
 Go to the Bot tab on the Developer portal site and enable Privileged Gateway Intents. You need Presence, Server Members, and Message Content enabled.
 
 Go to the URL Generator on the OAuth2 tab and select the bot scope. Then select these permissions "Read Messages/View Channels, Send Messages, Manage Messages, Attach Files, Read Message History, Use Slash Commands" then use the link to invite the bot to your server. I may have missed one, if something is missing you can enable it later in server permissions
-
-### Conda Install (OPTIONAL, Recommended) - This can be skipped if you dont mind if pip installs things globally. This can sometimes cause problems with other ML stuff so I always use conda envs.
-
-Install miniconda if you dont already have conda.
-
-Activate your base conda enviroment
-
-Create a new enviroment `conda create -n metatron python`
-
-Activate your new environment `conda activate metatron`
 
 ### Install - Start here if you dont want conda or have already activated and are in your metatron conda env.
 
