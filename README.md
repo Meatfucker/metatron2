@@ -79,7 +79,7 @@ Individual modules can be enabled or disabled based on your needs or to reduce v
 
 ## settings.cfg
 
-settings.cfg provides all of the settings for the bot. If the example file has more than one line with the same first value, that means you can have multiple. For example you can have multiple models= lines to list all of your model defaults.
+settings.cfg provides all of the settings for the bot. If the example file has more than one line with the same first value, that means you can have multiple. 
 
 | OPTION | DESCRIPTION | EXAMPLE |
 |----|----|----|
