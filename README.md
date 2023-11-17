@@ -55,13 +55,15 @@ Download the repo  or `git clone https://github.com/Meatfucker/metatron2.git`
 
 Install miniconda if you dont already have it. `https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html`
 
+Next enter the metatron2 conda env. On windows miniconda should make a terminal shortcut for conda, on linux run `conda activate`
+
 Go to the metatron2 directory and run `conda env create -f .\environment.yml`
 
 metatron2 is now fully installed.
 
 ### Running The Bot
 
-Next enter the metatron2 conda env. On windows miniconda should make a terminal shortcut for conda, on linux run `conda activate`, then for both platforms run `conda activate metatron2`
+run `conda activate metatron2`
 
 Your command line prompt should change to say metatron2.
 
