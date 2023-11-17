@@ -9,3 +9,5 @@ loras/*
 !loras/putlorashere.txt
 embeddings/*
 !embeddings/putembeddingshere.txt
+outputs/*
+!outputs/outputssavehere.txt

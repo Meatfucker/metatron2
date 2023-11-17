@@ -155,8 +155,10 @@ class MetatronClient(discord.Client):
                     if action == 'speakgengenerate':
                         prompt, channel, voicefile, username = args[2:6]
                         wav_bytes_io = await speak_generate(prompt, voicefile) #this generates the audio
-                        truncatedprompt = prompt[:1000] #this avoids file name length limits
+                        sanitized_prompt = re.sub(r'[^\w\s\-\.]', '', prompt)
+                        truncatedprompt = sanitized_prompt[:100] #this avoids file name length limits
                         await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(wav_bytes_io, filename=f"{truncatedprompt}.wav"), view=Speakgenbuttons(self.generation_queue, user_id, prompt, voicefile, self))
+                        await self.save_output(truncatedprompt, wav_bytes_io, "wav")
                         self.speakgenreply_logger = logger.bind(user=username, userid=user_id, prompt=prompt)
                         self.speakgenreply_logger.success("SPEAKGEN Replied")
                         with torch.no_grad(): #clear gpu memory cache
@@ -178,8 +180,10 @@ class MetatronClient(discord.Client):
                             self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
                             self.sd_loaded_embeddings = []
                             sd_need_reload = False
-                        truncatedprompt = prompt[:200] #this avoids file name length issues
+                        sanitized_prompt = re.sub(r'[^\w\s\-\.]', '', prompt)
+                        truncatedprompt = sanitized_prompt[:100] #this avoids file name length limits
                         await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, seed, steps, width, height, self))
+                        await self.save_output(truncatedprompt, generated_image, "png")
                         self.imagegenreply_logger = logger.bind(user=username, userid=user_id, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel, batchsize=batch_size, seed=seed, steps=steps, width=width, height=height)
                         self.imagegenreply_logger.success("IMAGEGEN Replied")
                         with torch.no_grad(): #clear gpu memory cache
@@ -199,6 +203,15 @@ class MetatronClient(discord.Client):
         else:
             self.generation_queue_concurrency_list[user_id] += 1
             return True
+            
+    @logger.catch
+    async def save_output(self, prompt, file, filetype):
+        current_datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        basepath = f'{SETTINGS["savepath"][0]}/{current_datetime_str}-{prompt}'
+        truncatedpath = basepath[:200]
+        imagesavepath = f'{truncatedpath}.{filetype}'
+        with open(imagesavepath, "wb") as output_file:
+            output_file.write(file.getvalue())
         
     @logger.catch
     async def on_message(self, message):
