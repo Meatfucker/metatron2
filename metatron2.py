@@ -276,7 +276,7 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
 @app_commands.choices(modelchoice=client.sd_model_choices)
 @app_commands.choices(embeddingchoice=client.sd_embedding_choices)
 @app_commands.choices(lorachoice=client.sd_loras_choices)
-@app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding')
+@app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding', lorachoice='lora')
 async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = 1, seed: Optional[int] = None, steps: Optional[int] = 25, width: Optional[int] = 512, height: Optional[int] = 512):
     '''Slash command that generates images'''
     if SETTINGS["enableimage"][0] != "True":

@@ -1,1 +1,2 @@
 put your model files in this directory.
+only safetensors models are currently recognized
