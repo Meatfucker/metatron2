@@ -26,8 +26,10 @@ logger.remove()  # Remove the default configuration
 
 if SETTINGS["enabledebug"][0] == "True": #this sets up the base logger formatting
     logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >8}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=True)
+    logger.add("bot.log", rotation="20 MB", format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >8}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=False)
 else:
     logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="INFO", colorize=True)
+    logger.add("bot.log", rotation="20 MB", format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="INFO", colorize=True)
 
 class MetatronClient(discord.Client):
     '''The discord client class for the bot'''
@@ -52,7 +54,6 @@ class MetatronClient(discord.Client):
         self.sd_loras_list = None #list of available loras
         self.sd_loras_choices = [] #the choices object for the discord imagegen loras ui
     
-    @logger.catch
     async def setup_hook(self):
         if SETTINGS["enableword"][0] == "True":
             logger.info("Loading LLM")
@@ -87,7 +88,6 @@ class MetatronClient(discord.Client):
         self.ready_logger = logger.bind(user=client.user.name, userid=client.user.id)
         self.ready_logger.info("Login Successful")
     
-    @logger.catch
     async def process_queue(self):
         while True:
             try:

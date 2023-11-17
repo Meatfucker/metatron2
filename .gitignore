@@ -1,4 +1,5 @@
 settings.cfg
+bot.log
 __pycache__
 voices/*
 !voices/putvoiceshere.txt
