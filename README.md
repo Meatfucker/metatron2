@@ -71,7 +71,7 @@ Now is a good time to copy any models, loras, embeddings, etc to the appropriate
 
 Finally, run `python metatron2.py` and wait.
 
-The very first startup will take a long time as it downloads the LLM model and base SD model. The console will produce output as the individual parts load.
+The very first startup will take quite a long time as it downloads ~20GB of models, namely the LLM model and base SD model. The console will produce output as the individual parts load.
 
 Be aware that having the wordgen, imagegen, and speakgen modules all active at the same time will peak at about 20GB of vram when running a batch size 4 imagegen.
 
@@ -80,8 +80,6 @@ Individual modules can be enabled or disabled based on your needs or to reduce v
 ## settings.cfg
 
 settings.cfg provides all of the settings for the bot. If the example file has more than one line with the same first value, that means you can have multiple. For example you can have multiple models= lines to list all of your model defaults.
-
-See https://github.com/oobabooga/text-generation-webui/tree/main/api-examples For some info on Oobas API and https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/3734 for info on the A1111 API.
 
 | OPTION | DESCRIPTION | EXAMPLE |
 |----|----|----|
