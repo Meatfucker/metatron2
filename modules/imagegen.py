@@ -16,7 +16,7 @@ from transformers.utils import logging as translogging
 from compel import Compel
 import discord
 from discord import app_commands
-from settings import SETTINGS
+from modules.settings import SETTINGS
 
 difflogging.set_verbosity_error() #Attempt to silence noisy diffusers log messages
 translogging.set_verbosity_error() #Attempt to silence noisy transformers log messages

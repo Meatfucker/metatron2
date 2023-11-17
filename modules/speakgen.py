@@ -9,7 +9,7 @@ from scipy.io.wavfile import write as write_wav
 import discord
 from discord import app_commands
 from bark import SAMPLE_RATE, generate_audio, preload_models
-from settings import SETTINGS
+from modules.settings import SETTINGS
 
 logger.remove() #attempt to silence noisy library logging messages
 

@@ -8,6 +8,7 @@ import io
 import base64
 import math
 import re
+import signal
 import sys
 import asyncio
 from datetime import datetime
@@ -15,17 +16,17 @@ import discord
 from discord import app_commands
 from loguru import logger
 from typing import Optional, Literal
-from wordgen import Wordgenbuttons, load_llm, llm_generate, clear_history, delete_last_history, insert_history
-from speakgen import Speakgenbuttons, load_bark, speak_generate, load_voices
-from imagegen import Imagegenbuttons, load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list, load_loras_list, load_sd_lora
-from settings import SETTINGS
+from modules.wordgen import Wordgenbuttons, load_llm, llm_generate, clear_history, delete_last_history, insert_history
+from modules.speakgen import Speakgenbuttons, load_bark, speak_generate, load_voices
+from modules.imagegen import Imagegenbuttons, load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list, load_loras_list, load_sd_lora
+from modules.settings import SETTINGS
 import torch
 import gc
 
 logger.remove()  # Remove the default configuration
 
 if SETTINGS["enabledebug"][0] == "True": #this sets up the base logger formatting
-    logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >8}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=True)
+    logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >16}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=True)
     logger.add("bot.log", rotation="20 MB", format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >8}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=False)
 else:
     logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="INFO", colorize=True)
@@ -54,6 +55,7 @@ class MetatronClient(discord.Client):
         self.sd_loras_list = None #list of available loras
         self.sd_loras_choices = [] #the choices object for the discord imagegen loras ui
     
+    @logger.catch
     async def setup_hook(self):
         if SETTINGS["enableword"][0] == "True":
             logger.info("Loading LLM")
@@ -88,6 +90,7 @@ class MetatronClient(discord.Client):
         self.ready_logger = logger.bind(user=client.user.name, userid=client.user.id)
         self.ready_logger.info("Login Successful")
     
+    @logger.catch
     async def process_queue(self):
         while True:
             try:
@@ -282,4 +285,24 @@ async def imagegen(interaction: discord.Interaction, userprompt: str, negativepr
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
         
-client.run(SETTINGS["token"][0], log_handler=None) #run bot
+async def quit_exit():
+    # Perform cleanup tasks here if needed before exiting
+    # Close resources, finish ongoing tasks, etc.
+    logger.info("Shutting down.")
+    await client.close()  # Close the Discord bot connection gracefully
+    sys.exit(0)  # Exit the program
+
+def handle_interrupt(signum, frame):
+    loop.create_task(quit_exit())  # Trigger cleanup and exit
+
+def run_program():
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(client.start(SETTINGS["token"][0]))  # Start the bot
+    except KeyboardInterrupt:
+        loop.run_until_complete(quit_exit())  # If KeyboardInterrupt occurs during setup or start, perform cleanup and exit
+    finally:
+        loop.close()
+
+if __name__ == "__main__":
+    run_program()

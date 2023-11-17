@@ -11,7 +11,7 @@ import discord
 import torch
 from transformers import LlamaForCausalLM, LlamaConfig, LlamaTokenizer
 from transformers.utils import logging as translogging
-from settings import SETTINGS
+from modules.settings import SETTINGS
 
 translogging.set_verbosity_error() #Try to silence transformers logging spam
 logger.remove() #More of the same
