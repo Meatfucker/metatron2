@@ -55,14 +55,16 @@ async def llm_generate(message, prompt, model, tokenizer):
 @logger.catch 
 async def save_history(generated_text, message):
     '''saves the prompt and llm response to the users history'''
-    llm_defaults = await get_defaults('global')
+    llm_defaults = await get_defaults('global') #get default values
     last_message_index = generated_text.rfind("USER:") #this and the next line extract the last question/answer pair from the generated text
     last_message_pair = generated_text[last_message_index:].strip()
     if message.author.id not in wordgen_user_history: #if they have no history yet include the system prompt along with the special tokens for the instruction format
         wordgen_user_history[message.author.id] = []
         messagepair = f'{llm_defaults["wordsystemprompt"][0]}\n\n{last_message_pair}</s>\n'
     else:
-        messagepair = f'{last_message_pair}</s>\n'
+        messagepair = f'{last_message_pair}</s>\n' #otherwise just the message pair and special tokens
+    if len(wordgen_user_history[message.author.id]) >= int(llm_defaults["wordmaxhistory"][0]):  # check if the history has reached 20 items
+        del wordgen_user_history[message.author.id][0]
     wordgen_user_history[message.author.id].append(messagepair) #add the message to the history
 
 @logger.catch    

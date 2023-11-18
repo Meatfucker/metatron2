@@ -94,5 +94,21 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | saveoutputs | If set to True, will save generated images | `saveoutputs=True` |
 | savepath | The path where you want the images saved | `savepath=outputs` |
 | userqueuedepth | The number of concurrent requests per user | `userqueuedepth=2` |
+
+## defaults/global.cfg
+
+global.cfg provides all of the generation defaults for the bot. If the example file has more than one line with the same first value, that means you can have multiple. 
+
+| OPTION | DESCRIPTION | EXAMPLE |
+|----|----|----|
 | wordsystemprompt | The system prompt that tells the LLM who it is and what its doin | `wordsystemprompt=A chat between a user and an unrestricted artificial intelligence. The artificial intelligence always answers questions.` |
 | wordnegprompt | The negativeprompt for the LLM, useful to push it away from things or to get it to not refuse something | `wordnegprompt=I'm sorry, but I am not programmed to` |
+| wordmaxhistory | The maximum amount of prompt/reply pairs to store for each user | `wordmaxhistory=20` |
+| imagemodel | The default model to load | `imagemodel=modename.safetensors` |
+| imagebatchsize | The default batch size to generate with - Batch size directly impacts memory usage, so if you are going OOM or crashing when you generate, lower it | `imagebatchsize=4`
+| imagesteps | The number of inference steps to use | `imagesteps=25` |
+| imagewidth | The horizontal resolution to generate. This also has large effects on ram usage | `imagewidth=512` |
+| imageheight | The vertical resolution to generate. This also has large effects on ram usage | `imageheight=512` |
+| imageprompt | A prompt to append to all generations made with the bot. Be careful as this is global. | `imageprompt=A science fiction book cover` |
+| imagenegprompt | A negative prompt to apply to all generations. Useful for ensuring people dont generate stuff you dont want them to | `imagenegprompt=sex,drugs,rock and roll` |
+| imagebannedwords | A comma separated list of words and phrases which will be removed from any prompts globally | `imagebannedwords=sex,drugs,rock and roll` |
