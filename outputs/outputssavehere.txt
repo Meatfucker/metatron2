@@ -1,2 +1,0 @@
-This is where your sounds and images will get saved by default.
-Can be configured via the settings.cfg file.

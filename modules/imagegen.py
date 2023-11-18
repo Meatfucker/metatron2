@@ -34,26 +34,27 @@ def format_prompt_weights(input_string):
     return input_string
 
 @logger.catch
-def moderate_prompt(prompt, negativeprompt):
+async def moderate_prompt(prompt, negativeprompt):
+    sd_defaults = await get_defaults('global')
     '''Removes all the words in the imagebannedwords setting from prompt, and adds all the words in imagenegprompt to negativeprompt'''
-    banned_words = SETTINGS["imagebannedwords"][0].split(',')
+    banned_words = sd_defaults["imagebannedwords"][0].split(',')
     for word in banned_words:
         prompt = prompt.replace(word.strip(), '')
-    imagenegprompt_string = SETTINGS["imagenegprompt"][0]
+    imagenegprompt_string = sd_defaults["imagenegprompt"][0]
     if negativeprompt == None:
         negativeprompt = ""
     negativeprompt = imagenegprompt_string + " " + negativeprompt
     return prompt, negativeprompt
 
 @logger.catch
-def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
+async def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
     '''This multiples the prompt by the batch size and creates the weight embeddings'''
     if seed == None:
         random_seed = random.randint(-2147483648, 2147483647)
         generator = [torch.Generator("cuda").manual_seed(random.randint(-2147483648, 2147483647)) for i in range(batch_size)] #push the generators to gpu
     else:
         generator = [torch.Generator("cuda").manual_seed(seed + i) for i in range(batch_size)] #push the generators to gpu
-    prompt, negativeprompt = moderate_prompt(prompt, negativeprompt)
+    prompt, negativeprompt = await moderate_prompt(prompt, negativeprompt)
     prompt = format_prompt_weights(prompt)
     prompts = batch_size * [prompt]
     with torch.no_grad():
@@ -167,7 +168,8 @@ async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negative
     sd_generate_logger.debug("IMAGEGEN Generate Started.")
     generate_width = math.ceil(width / 8) * 8
     generate_height = math.ceil(height / 8) * 8
-    images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed), num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
+    inputs = await get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed)
+    images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
     pipeline.unload_lora_weights()
     sd_generate_logger.debug("IMAGEGEN Generate Finished.")
     composite_image_bytes = await make_image_grid(images)
@@ -186,7 +188,10 @@ async def make_image_grid(images):
         row, col = divmod(idx, num_images_per_row)
         composite_image.paste(image, (col * width, row * height))
     composite_image_bytes = io.BytesIO()
-    composite_image.save(composite_image_bytes, format='PNG')
+    if SETTINGS["saveinjpg"][0] == "True":
+        composite_image.save(composite_image_bytes, format='JPEG')
+    else:
+        composite_image.save(composite_image_bytes, format='PNG')
     composite_image_bytes.seek(0)
     return composite_image_bytes
     

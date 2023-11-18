@@ -88,6 +88,7 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | token | Bots Discord token. | `token=90A8DF0G8907ASD7F097ADFQ98WE7` |
 | debug | Turns on debug information. | `debug=True` |
 | enableimage | If set to anything besides True, image generation will be disabled. | `enableimage=True` |
+| saveinjpg | If set to True will save and upload in jpeg instead of PNG, saving on space and bandwidth at the expense of quality | `saveinjpg=True` |
 | enableword | If set to anything besides True, LLM generation will be disabled. | `enableword=True` |
 | usebigllm | If set to True, will use a 13B LLM, otherwise, use a 7B LLM | `usebigllm=True` |
 | enablespeak | If set to anything besides True, Voice generation will be disabled | `enablespeak=True` |

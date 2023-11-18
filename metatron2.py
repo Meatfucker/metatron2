@@ -204,7 +204,10 @@ class MetatronClient(discord.Client):
                         
                         sanitized_prompt = re.sub(r'[^\w\s\-\.]', '', prompt)
                         truncatedprompt = sanitized_prompt[:100] #this avoids file name length limits
-                        await self.save_output(truncatedprompt, generated_image, "png")
+                        if SETTINGS["saveinjpg"][0] == "True":
+                            await self.save_output(truncatedprompt, generated_image, "jpg")
+                        else:
+                            await self.save_output(truncatedprompt, generated_image, "png")
                         await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, seed, steps, width, height, self))
 
                         self.imagegenreply_logger = logger.bind(user=username, userid=user_id, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel, batchsize=batch_size, seed=seed, steps=steps, width=width, height=height)
