@@ -89,6 +89,7 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | debug | Turns on debug information. | `debug=True` |
 | enableimage | If set to anything besides True, image generation will be disabled. | `enableimage=True` |
 | enableword | If set to anything besides True, LLM generation will be disabled. | `enableword=True` |
+| usebigllm | If set to True, will use a 13B LLM, otherwise, use a 7B LLM | `usebigllm=True` |
 | enablespeak | If set to anything besides True, Voice generation will be disabled | `enablespeak=True` |
 | bannedusers | Comma separated list of discord user ids to ignore. | `bannedusers=34524353425346,12341246577` |
 | saveoutputs | If set to True, will save generated images | `saveoutputs=True` |

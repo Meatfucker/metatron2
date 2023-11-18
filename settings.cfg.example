@@ -1,5 +1,6 @@
 token=discordbottokengoeshere
 enableword=True
+usebigllm=True
 enablespeak=True
 enableimage=True
 enabledebug=False

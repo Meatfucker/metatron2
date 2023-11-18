@@ -20,12 +20,20 @@ wordgen_user_history = {} #This dict holds the histories for the users.
 @logger.catch
 async def load_llm():
     '''loads the llm'''
-    model = LlamaForCausalLM.from_pretrained("liuhaotian/llava-v1.5-13b", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto") #load model
+    if SETTINGS["usebigllm"][0] == "True":
+        model_name = "liuhaotian/llava-v1.5-13b"
+        model = LlamaForCausalLM.from_pretrained(model_name, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto") #load model
+    else:
+        model_name = "liuhaotian/llava-v1.5-7b"
+        model = LlamaForCausalLM.from_pretrained(model_name, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto") #load model
     model = model.to_bettertransformer() #Use bettertransformers for more speed
     model.eval()
-    logger.success("LLM Model Loaded.")
-    tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-13b") #load tokenizer
-    logger.success("LLM Tokenizer Loaded.")
+    if SETTINGS["usebigllm"][0] == "True":
+        tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-13b") #load tokenizer
+    else:
+        tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-7b") #load tokenizer
+    load_llm_logger = logger.bind(model=model_name)
+    load_llm_logger.success("LLM Loaded.")
     return model, tokenizer
 
 @logger.catch    
