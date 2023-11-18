@@ -11,7 +11,7 @@ import discord
 import torch
 from transformers import LlamaForCausalLM, LlamaConfig, LlamaTokenizer
 from transformers.utils import logging as translogging
-from modules.settings import SETTINGS
+from modules.settings import SETTINGS, get_defaults
 
 translogging.set_verbosity_error() #Try to silence transformers logging spam
 logger.remove() #More of the same
@@ -31,14 +31,15 @@ async def load_llm():
 @logger.catch    
 async def llm_generate(message, prompt, model, tokenizer):
     '''function for generating responses with the llm'''
+    llm_defaults = await get_defaults('global')
     userhistory = await load_history(message) #load the users past history to include in the prompt
     if message.author.id not in wordgen_user_history or not wordgen_user_history[message.author.id]:
-        formatted_prompt = f'{SETTINGS["wordsystemprompt"][0]}\n\nUSER:{prompt}\nASSISTANT:' #if there is no history, add the system prompt to the beginning
+        formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:{prompt}\nASSISTANT:' #if there is no history, add the system prompt to the beginning
     else:
         formatted_prompt = f'{userhistory}\nUSER:{prompt}\nASSISTANT:'
     input_ids = tokenizer.encode(formatted_prompt, return_tensors="pt") #turn prompt into tokens
     input_ids = input_ids.to('cuda') #send tokens to gpu
-    negative_input_ids = tokenizer.encode(SETTINGS["wordnegprompt"][0], return_tensors="pt") #turn negative prompt into tokens
+    negative_input_ids = tokenizer.encode(llm_defaults["wordnegprompt"][0], return_tensors="pt") #turn negative prompt into tokens
     negative_input_ids = negative_input_ids.to('cuda') #negative tokens to gpu
     llm_generate_logger = logger.bind(user=message.author.name, userid=message.author.id, prompt=prompt)
     llm_generate_logger.debug("WORDGEN Generate Started.")
@@ -54,11 +55,12 @@ async def llm_generate(message, prompt, model, tokenizer):
 @logger.catch 
 async def save_history(generated_text, message):
     '''saves the prompt and llm response to the users history'''
+    llm_defaults = await get_defaults('global')
     last_message_index = generated_text.rfind("USER:") #this and the next line extract the last question/answer pair from the generated text
     last_message_pair = generated_text[last_message_index:].strip()
     if message.author.id not in wordgen_user_history: #if they have no history yet include the system prompt along with the special tokens for the instruction format
         wordgen_user_history[message.author.id] = []
-        messagepair = f'{SETTINGS["wordsystemprompt"][0]}\n\n{last_message_pair}</s>\n'
+        messagepair = f'{llm_defaults["wordsystemprompt"][0]}\n\n{last_message_pair}</s>\n'
     else:
         messagepair = f'{last_message_pair}</s>\n'
     wordgen_user_history[message.author.id].append(messagepair) #add the message to the history
@@ -85,9 +87,10 @@ async def delete_last_history(message):
 @logger.catch
 async def insert_history(userid, prompt, llm_prompt):
     '''inserts a question/answer pair into a users history'''
+    llm_defaults = await get_defaults('global')
     if userid not in wordgen_user_history: #if they have no history, include the system prompt
         wordgen_user_history[userid] = []
-        injectedhistory = f'{SETTINGS["wordsystemprompt"][0]}\n\nUSER:{prompt}\nASSISTANT:{llm_prompt}</s>\n'
+        injectedhistory = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:{prompt}\nASSISTANT:{llm_prompt}</s>\n'
     else:
         injectedhistory = f'USER:{prompt}\nASSISTANT:{llm_prompt}</s>\n'
     wordgen_user_history[userid].append(injectedhistory)

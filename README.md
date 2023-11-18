@@ -67,13 +67,13 @@ run `conda activate metatron2`
 
 Your command line prompt should change to say metatron2.
 
-If it has, next youll want to open up settings-example.cfg, read each setting and set it per your config needs. At a minimum youll need to enter your Discord bot token.
+If it has, next youll want to open up settings.cfg.example and defaults/global.cfg.example, read each setting and set it per your config needs, then save them without the .example extension. At a minimum youll need to enter your Discord bot token.
 
 Now is a good time to copy any models, loras, embeddings, etc to the appropriate directories in the metatron2 directory.
 
 Finally, run `python metatron2.py` and wait.
 
-The very first startup will take quite a long time as it downloads ~20GB of models, namely the LLM model and base SD model. The console will produce output as the individual parts load.
+The very first startup will take quite a long time as it downloads ~20GB of models, namely the LLM model and base SD model. If you have models in the models directory itll load the first one of those it finds rather than downloading the huggingface fallback model. The console will produce output as the individual parts load.
 
 Be aware that having the wordgen, imagegen, and speakgen modules all active at the same time will peak at about 20GB of vram when running a batch size 4 imagegen.
 

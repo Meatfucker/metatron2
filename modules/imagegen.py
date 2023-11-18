@@ -16,7 +16,7 @@ from transformers.utils import logging as translogging
 from compel import Compel
 import discord
 from discord import app_commands
-from modules.settings import SETTINGS
+from modules.settings import SETTINGS, get_defaults
 
 difflogging.set_verbosity_error() #Attempt to silence noisy diffusers log messages
 translogging.set_verbosity_error() #Attempt to silence noisy transformers log messages
@@ -107,37 +107,45 @@ async def load_sd(model = None, pipeline = None):
         model_id = f'./models/{model}'
         pipeline = StableDiffusionPipeline.from_single_file(model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True) #This loads a checkpoint file
     else:
-        model_id = "runwayml/stable-diffusion-v1-5"
-        pipeline = DiffusionPipeline.from_pretrained(model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True) #This loads a huggingface based model, is the initial loading model for now.
+        sd_model_list = await load_models_list()
+        if sd_model_list != None:
+            model_id = f'./models/{sd_model_list[0]}'
+            pipeline = StableDiffusionPipeline.from_single_file(model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True) #This loads a checkpoint file
+        else:
+            model_id = "runwayml/stable-diffusion-v1-5"
+            pipeline = DiffusionPipeline.from_pretrained(model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True) #This loads a huggingface based model, is the initial loading model for now.
     pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config) #This is the sampler, I may make it configurable in the future
     pipeline = pipeline.to("cuda") #push the pipeline to gpu
-    logger.success("SD Model Loaded.")
+    load_sd_logger = logger.bind(model=model_id)
+    load_sd_logger.success("SD Model Loaded.")
     compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder) #create the compel processor object for the pipeline
     with torch.no_grad(): #clear gpu memory cache
         torch.cuda.empty_cache()
     gc.collect() #clear python memory
-    return pipeline, compel_proc
+    return pipeline, compel_proc, model
 
 @logger.catch   
 async def load_sd_lora(pipeline, prompt):
     ''' This loads a lora and applies it to a pipeline'''
-    sd_need_reload = False
     new_prompt = prompt
     loramatches = re.findall(r'<lora:([^:]+):([\d.]+)>', prompt)
     if loramatches:
+        names = []
+        weights = []
         logger.debug("LORA Loading...")
         for match in loramatches:
             loraname, loraweight = match
             loraweight = float(loraweight)  # Convert y to a float if needed
             lorafilename = f'{loraname}.safetensors'
-            pipeline.load_lora_weights("./loras", weight_name=lorafilename)
-            pipeline.fuse_lora(lora_scale=loraweight)
+            pipeline.load_lora_weights("./loras", weight_name=lorafilename, adapter_name=loraname)
+            names.append(loraname)
+            weights.append(loraweight)
+        pipeline.set_adapters(names, adapter_weights=weights)
         new_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', prompt)
-        sd_need_reload = True
         with torch.no_grad(): #clear gpu memory cache
             torch.cuda.empty_cache()
         gc.collect() #clear python memory
-    return pipeline, new_prompt, sd_need_reload
+    return pipeline, new_prompt
 
 @logger.catch    
 async def load_ti(pipeline, prompt, loaded_image_embeddings):
@@ -155,12 +163,13 @@ async def load_ti(pipeline, prompt, loaded_image_embeddings):
 @logger.catch
 async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negativeprompt, seed, steps, width, height):
     '''this generates the request, tiles the images, and returns them as a single image'''
-    logger.debug("IMAGEGEN Generate Started.")
+    sd_generate_logger = logger.bind(prompt=prompt, negative_prompt=negativeprompt, model=model, batch_size=batch_size, width=width, height=height)
+    sd_generate_logger.debug("IMAGEGEN Generate Started.")
     generate_width = math.ceil(width / 8) * 8
     generate_height = math.ceil(height / 8) * 8
     images = await asyncio.to_thread(pipeline, **get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed), num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
     pipeline.unload_lora_weights()
-    logger.debug("IMAGEGEN Generate Finished.")
+    sd_generate_logger.debug("IMAGEGEN Generate Finished.")
     composite_image_bytes = await make_image_grid(images)
     return composite_image_bytes
 

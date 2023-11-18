@@ -19,7 +19,7 @@ from typing import Optional, Literal
 from modules.wordgen import Wordgenbuttons, load_llm, llm_generate, clear_history, delete_last_history, insert_history
 from modules.speakgen import Speakgenbuttons, load_bark, speak_generate, load_voices
 from modules.imagegen import Imagegenbuttons, load_sd, sd_generate, load_models_list, load_ti, load_embeddings_list, load_loras_list, load_sd_lora
-from modules.settings import SETTINGS
+from modules.settings import SETTINGS, get_defaults
 import torch
 import gc
 
@@ -49,11 +49,13 @@ class MetatronClient(discord.Client):
         self.sd_compel_processor = None #This is the diffusers compel processor object, which handles prompt weighting
         self.sd_model_list = None #This is a list of the available model files
         self.sd_model_choices = [] #The choices object for the discord imagegen models ui
+        self.sd_loaded_model = None
         self.sd_loaded_embeddings = [] #The list of currently loaded image embeddings, needed to make diffusers not shit itself if you load the same one twice.
         self.sd_embeddings_list = None #List of available embeddings
         self.sd_embedding_choices = [] #The choices object for the discord imagegen embeddings ui
         self.sd_loras_list = None #list of available loras
         self.sd_loras_choices = [] #the choices object for the discord imagegen loras ui
+        
     
     @logger.catch
     async def setup_hook(self):
@@ -70,7 +72,7 @@ class MetatronClient(discord.Client):
         
         if SETTINGS["enableimage"][0] == "True":
             logger.info("Loading SD")
-            self.sd_pipeline, self.sd_compel_processor = await load_sd() #load the sd model pipeline and compel prompt processor
+            self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd() #load the sd model pipeline and compel prompt processor
             self.sd_model_list = await load_models_list() #get the list of available models to build the discord interface with
             for model in self.sd_model_list:
                 self.sd_model_choices.append(app_commands.Choice(name=model, value=model))
@@ -168,24 +170,46 @@ class MetatronClient(discord.Client):
                 if SETTINGS["enableimage"][0] == "True":
                     
                     if action == 'imagegenerate':
+                        sd_defaults = await get_defaults('global')
                         prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height = args[2:12]
-                        sd_need_reload = False
+                        
                         if sdmodel != None: #if a model has been selected, create and load a fresh pipeline and compel processor
-                            self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
+                            self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sdmodel, self.sd_pipeline)
                             self.sd_loaded_embeddings = []
-                        self.sd_pipeline, prompt_to_gen, sd_need_reload = await load_sd_lora(self.sd_pipeline, prompt)
+                            with torch.no_grad(): #clear gpu memory cache
+                                torch.cuda.empty_cache()
+                            gc.collect() #clear python memory
+                        else:
+                            if self.sd_loaded_model != sd_defaults["imagemodel"][0]:
+                                self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sd_defaults["imagemodel"][0], self.sd_pipeline)
+                                self.sd_loaded_embeddings = []
+                            with torch.no_grad(): #clear gpu memory cache
+                                torch.cuda.empty_cache()
+                            gc.collect() #clear python memory
+                        if batch_size == None: 
+                            batch_size = int(sd_defaults["imagebatchsize"][0])
+                        if steps == None: 
+                            steps = int(sd_defaults["imagesteps"][0])
+                        if width == None: 
+                            width = int(sd_defaults["imagewidth"][0])
+                        if height == None: 
+                            height = int(sd_defaults["imageheight"][0])
+                        
+                        if sd_defaults["imageprompt"][0] not in prompt:
+                            prompt = f'{sd_defaults["imageprompt"][0]} {prompt}'
+                        self.sd_pipeline, prompt_to_gen = await load_sd_lora(self.sd_pipeline, prompt)
                         self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt_to_gen, self.sd_loaded_embeddings) #check for embeddings and apply them
                         generated_image = await sd_generate(self.sd_pipeline, self.sd_compel_processor, prompt_to_gen, sdmodel, batch_size, negativeprompt, seed, steps, width, height) #generate the image request
-                        if sd_need_reload == True:
-                            self.sd_pipeline, self.sd_compel_processor = await load_sd(sdmodel, self.sd_pipeline)
-                            self.sd_loaded_embeddings = []
-                            sd_need_reload = False
+                        
+                        
                         sanitized_prompt = re.sub(r'[^\w\s\-\.]', '', prompt)
                         truncatedprompt = sanitized_prompt[:100] #this avoids file name length limits
-                        await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, seed, steps, width, height, self))
                         await self.save_output(truncatedprompt, generated_image, "png")
+                        await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, seed, steps, width, height, self))
+
                         self.imagegenreply_logger = logger.bind(user=username, userid=user_id, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel, batchsize=batch_size, seed=seed, steps=steps, width=width, height=height)
                         self.imagegenreply_logger.success("IMAGEGEN Replied")
+                        
                         with torch.no_grad(): #clear gpu memory cache
                             torch.cuda.empty_cache()
                         gc.collect() #clear python memory
@@ -222,16 +246,16 @@ class MetatronClient(discord.Client):
             if str(message.author.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
                 return  # Exit the function if the author is banned
             stripped_message = re.sub(r'<[^>]+>', '', message.content).lstrip() #this removes the user tag
-            if "forget" in stripped_message.lower():
-                if await self.is_room_in_queue(message.author.id) == True:
-                    await self.generation_queue.put(('wordgenforget', message.author.id, message))
-                else:
-                    await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
+            #if "forget" in stripped_message.lower():
+            #    if await self.is_room_in_queue(message.author.id) == True:
+            #        await self.generation_queue.put(('wordgenforget', message.author.id, message))
+            #    else:
+            #        await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
+            #else:
+            if await self.is_room_in_queue(message.author.id) == True:
+                await self.generation_queue.put(('wordgengenerate', message.author.id, message, stripped_message, False))
             else:
-                if await self.is_room_in_queue(message.author.id) == True:
-                    await self.generation_queue.put(('wordgengenerate', message.author.id, message, stripped_message, False))
-                else:
-                    await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
+                await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
            
 client = MetatronClient(intents=discord.Intents.all()) #client intents
 
@@ -277,7 +301,7 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
 @app_commands.choices(embeddingchoice=client.sd_embedding_choices)
 @app_commands.choices(lorachoice=client.sd_loras_choices)
 @app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding', lorachoice='lora')
-async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = 1, seed: Optional[int] = None, steps: Optional[int] = 25, width: Optional[int] = 512, height: Optional[int] = 512):
+async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None):
     '''Slash command that generates images'''
     if SETTINGS["enableimage"][0] != "True":
                 await interaction.response.send_message("Image generation is currently disabled.")

@@ -17,7 +17,7 @@ logger.remove() #attempt to silence noisy library logging messages
 async def load_bark():
     '''This loads the bark models'''
     preload_models()
-    logger.success("Bark Model Loaded.")
+    logger.success("Bark Loaded.")
 
 @logger.catch    
 async def load_voices():
@@ -32,13 +32,14 @@ async def load_voices():
 @logger.catch
 async def speak_generate(prompt, voice_file):
     '''Function to generate speech'''
-    logger.debug("SPEAKGEN Generate Started")
+    speak_generate_logger = logger.bind(prompt=prompt, voice=voice_file)
+    speak_generate_logger.debug("SPEAKGEN Generate Started")
     if voice_file != None:
         voice_choice = f'voices/{voice_file}'
         audio_array = await asyncio.to_thread(generate_audio, prompt, history_prompt=voice_choice) #Thread the generate call so it doesnt lock up the bot client.
     else:
         audio_array = await asyncio.to_thread(generate_audio, prompt) #Thread the generate call so it doesnt lock up the bot client.
-    logger.debug("SPEAKGEN Generate Completed")
+    speak_generate_logger.debug("SPEAKGEN Generate Completed")
     wav_io = io.BytesIO()
     write_wav(wav_io, SAMPLE_RATE, audio_array) #turn the generated audio into a wav file-like object
     wav_io.seek(0)
