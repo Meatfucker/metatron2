@@ -13,3 +13,4 @@ outputs/*
 !outputs/outputssavehere.txt
 defaults/*
 !defaults/global.cfg.example
+.idea

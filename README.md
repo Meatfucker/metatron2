@@ -18,6 +18,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * Reroll, DM, and Delete buttons on gens for ease of interaction.
 * TI embedding support
 * Configurable banned word list and mandatory negative prompt options for moderation purposes.
+* Images can be saved and uploaded in either png or jpg
 
 ![metatron2](/assets/wordgenexample.png)
 
@@ -35,6 +36,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * Can generate music and singing by enclosing words in ♪
 * Using non-English words or characters will generally lead to that accent
 * Can create your own custom voice files and use them. See https://github.com/C0untFloyd/bark-gui for a project which can make metatron2 compatible voices.
+* Generated sounds can be saved and uploaded in either mp3 or wav
 
 
 ## INSTALLATION INSTRUCTIONS
