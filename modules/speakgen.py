@@ -9,6 +9,7 @@ from scipy.io.wavfile import write as write_wav
 import discord
 from discord import app_commands
 from bark import SAMPLE_RATE, generate_audio, preload_models
+from pydub import AudioSegment
 from modules.settings import SETTINGS
 
 logger.remove() #attempt to silence noisy library logging messages
@@ -43,6 +44,12 @@ async def speak_generate(prompt, voice_file):
     wav_io = io.BytesIO()
     write_wav(wav_io, SAMPLE_RATE, audio_array) #turn the generated audio into a wav file-like object
     wav_io.seek(0)
+    if SETTINGS["saveinmp3"][0] == "True":
+        audio_segment = AudioSegment.from_file(wav_io, format="wav")  # Load the WAV data into an AudioSegment
+        mp3_io = io.BytesIO()
+        audio_segment.export(mp3_io, format="mp3")  # Export the audio as an MP3 file-like object
+        mp3_io.seek(0)
+        return mp3_io
     return wav_io
 
 class Speakgenbuttons(discord.ui.View):

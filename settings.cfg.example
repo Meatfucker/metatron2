@@ -2,6 +2,7 @@ token=discordbottokengoeshere
 enableword=True
 usebigllm=True
 enablespeak=True
+saveinmp3=True
 enableimage=True
 saveinjpg=True
 enabledebug=False

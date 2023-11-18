@@ -159,8 +159,13 @@ class MetatronClient(discord.Client):
                         wav_bytes_io = await speak_generate(prompt, voicefile) #this generates the audio
                         sanitized_prompt = re.sub(r'[^\w\s\-\.]', '', prompt)
                         truncatedprompt = sanitized_prompt[:100] #this avoids file name length limits
-                        await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(wav_bytes_io, filename=f"{truncatedprompt}.wav"), view=Speakgenbuttons(self.generation_queue, user_id, prompt, voicefile, self))
-                        await self.save_output(truncatedprompt, wav_bytes_io, "wav")
+                        
+                        if SETTINGS["saveinmp3"][0] == "True":
+                            await self.save_output(truncatedprompt, wav_bytes_io, "mp3")
+                            await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(wav_bytes_io, filename=f"{truncatedprompt}.mp3"), view=Speakgenbuttons(self.generation_queue, user_id, prompt, voicefile, self))
+                        else:
+                            await self.save_output(truncatedprompt, wav_bytes_io, "wav")
+                            await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(wav_bytes_io, filename=f"{truncatedprompt}.wav"), view=Speakgenbuttons(self.generation_queue, user_id, prompt, voicefile, self))
                         self.speakgenreply_logger = logger.bind(user=username, userid=user_id, prompt=prompt)
                         self.speakgenreply_logger.success("SPEAKGEN Replied")
                         with torch.no_grad(): #clear gpu memory cache
