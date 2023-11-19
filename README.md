@@ -95,7 +95,7 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | enableword     | If set to anything besides True, LLM generation will be disabled.                                                   | `enableword=True`                        |
 | usebigllm      | If set to True, will use a 13B LLM, otherwise, use a 7B LLM                                                         | `usebigllm=True`                         |
 | enablespeak    | If set to anything besides True, Voice generation will be disabled                                                  | `enablespeak=True`                       |
-| saveinmp3      | If set to True, will save and upload audio in mp3 instead of wav                                                    | `saveinmp3=True'                         |
+| saveinmp3      | If set to True, will save and upload audio in mp3 instead of wav                                                    | `saveinmp3=True`                         |
 | bannedusers    | Comma separated list of discord user ids to ignore.                                                                 | `bannedusers=34524353425346,12341246577` |
 | saveoutputs    | If set to True, will save generated images                                                                          | `saveoutputs=True`                       |
 | savepath       | The path where you want the images saved                                                                            | `savepath=outputs`                       |
