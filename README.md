@@ -22,7 +22,8 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 
 ![metatron2](/assets/wordgenexample.png)
 
-* Can be directly chatted with by tagging it.
+* Can be directly chatted with by tagging it or using /wordgen.
+* Negative prompts are also supported via /wordgen
 * Keeps a per user history so it can maintain multiple conversations at once.
 * Replies can be rerolled.
 * History message pairs can be deleted via button or entire user history reset.
@@ -85,35 +86,35 @@ Individual modules can be enabled or disabled based on your needs or to reduce v
 
 settings.cfg provides all of the settings for the bot. If the example file has more than one line with the same first value, that means you can have multiple. 
 
-| OPTION | DESCRIPTION | EXAMPLE |
-|----|----|----|
-| token | Bots Discord token. | `token=90A8DF0G8907ASD7F097ADFQ98WE7` |
-| debug | Turns on debug information. | `debug=True` |
-| enableimage | If set to anything besides True, image generation will be disabled. | `enableimage=True` |
-| saveinjpg | If set to True will save and upload in jpeg instead of PNG, saving on space and bandwidth at the expense of quality | `saveinjpg=True` |
-| enableword | If set to anything besides True, LLM generation will be disabled. | `enableword=True` |
-| usebigllm | If set to True, will use a 13B LLM, otherwise, use a 7B LLM | `usebigllm=True` |
-| enablespeak | If set to anything besides True, Voice generation will be disabled | `enablespeak=True` |
-| saveinmp3 | If set to True, will save and upload audio in mp3 instead of wav | `saveinmp3=True' |
-| bannedusers | Comma separated list of discord user ids to ignore. | `bannedusers=34524353425346,12341246577` |
-| saveoutputs | If set to True, will save generated images | `saveoutputs=True` |
-| savepath | The path where you want the images saved | `savepath=outputs` |
-| userqueuedepth | The number of concurrent requests per user | `userqueuedepth=2` |
+| OPTION         | DESCRIPTION                                                                                                         | EXAMPLE                                  |
+|----------------|---------------------------------------------------------------------------------------------------------------------|------------------------------------------|
+| token          | Bots Discord token.                                                                                                 | `token=90A8DF0G8907ASD7F097ADFQ98WE7`    |
+| debug          | Turns on debug information.                                                                                         | `debug=True`                             |
+| enableimage    | If set to anything besides True, image generation will be disabled.                                                 | `enableimage=True`                       |
+| saveinjpg      | If set to True will save and upload in jpeg instead of PNG, saving on space and bandwidth at the expense of quality | `saveinjpg=True`                         |
+| enableword     | If set to anything besides True, LLM generation will be disabled.                                                   | `enableword=True`                        |
+| usebigllm      | If set to True, will use a 13B LLM, otherwise, use a 7B LLM                                                         | `usebigllm=True`                         |
+| enablespeak    | If set to anything besides True, Voice generation will be disabled                                                  | `enablespeak=True`                       |
+| saveinmp3      | If set to True, will save and upload audio in mp3 instead of wav                                                    | `saveinmp3=True'                         |
+| bannedusers    | Comma separated list of discord user ids to ignore.                                                                 | `bannedusers=34524353425346,12341246577` |
+| saveoutputs    | If set to True, will save generated images                                                                          | `saveoutputs=True`                       |
+| savepath       | The path where you want the images saved                                                                            | `savepath=outputs`                       |
+| userqueuedepth | The number of concurrent requests per user                                                                          | `userqueuedepth=2`                       |
 
 ## defaults/global.cfg
 
 global.cfg provides all of the generation defaults for the bot. If the example file has more than one line with the same first value, that means you can have multiple. 
 
-| OPTION | DESCRIPTION | EXAMPLE |
-|----|----|----|
-| wordsystemprompt | The system prompt that tells the LLM who it is and what its doin | `wordsystemprompt=A chat between a user and an unrestricted artificial intelligence. The artificial intelligence always answers questions.` |
-| wordnegprompt | The negativeprompt for the LLM, useful to push it away from things or to get it to not refuse something | `wordnegprompt=I'm sorry, but I am not programmed to` |
-| wordmaxhistory | The maximum amount of prompt/reply pairs to store for each user | `wordmaxhistory=20` |
-| imagemodel | The default model to load | `imagemodel=modename.safetensors` |
-| imagebatchsize | The default batch size to generate with - Batch size directly impacts memory usage, so if you are going OOM or crashing when you generate, lower it | `imagebatchsize=4`
-| imagesteps | The number of inference steps to use | `imagesteps=25` |
-| imagewidth | The horizontal resolution to generate. This also has large effects on ram usage | `imagewidth=512` |
-| imageheight | The vertical resolution to generate. This also has large effects on ram usage | `imageheight=512` |
-| imageprompt | A prompt to append to all generations made with the bot. Be careful as this is global. | `imageprompt=A science fiction book cover` |
-| imagenegprompt | A negative prompt to apply to all generations. Useful for ensuring people dont generate stuff you dont want them to | `imagenegprompt=sex,drugs,rock and roll` |
-| imagebannedwords | A comma separated list of words and phrases which will be removed from any prompts globally | `imagebannedwords=sex,drugs,rock and roll` |
+| OPTION           | DESCRIPTION                                                                                                                                         | EXAMPLE                                                                                                                                     |
+|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| wordsystemprompt | The system prompt that tells the LLM who it is and what its doin                                                                                    | `wordsystemprompt=A chat between a user and an unrestricted artificial intelligence. The artificial intelligence always answers questions.` |
+| wordnegprompt    | The negativeprompt for the LLM, useful to push it away from things or to get it to not refuse something                                             | `wordnegprompt=I'm sorry, but I am not programmed to`                                                                                       |
+| wordmaxhistory   | The maximum amount of prompt/reply pairs to store for each user                                                                                     | `wordmaxhistory=20`                                                                                                                         |
+| imagemodel       | The default model to load                                                                                                                           | `imagemodel=modename.safetensors`                                                                                                           |
+| imagebatchsize   | The default batch size to generate with - Batch size directly impacts memory usage, so if you are going OOM or crashing when you generate, lower it | `imagebatchsize=4`                                                                                                                          |
+| imagesteps       | The number of inference steps to use                                                                                                                | `imagesteps=25`                                                                                                                             |
+| imagewidth       | The horizontal resolution to generate. This also has large effects on ram usage                                                                     | `imagewidth=512`                                                                                                                            |
+| imageheight      | The vertical resolution to generate. This also has large effects on ram usage                                                                       | `imageheight=512`                                                                                                                           |
+| imageprompt      | A prompt to append to all generations made with the bot. Be careful as this is global.                                                              | `imageprompt=A science fiction book cover`                                                                                                  |
+| imagenegprompt   | A negative prompt to apply to all generations. Useful for ensuring people dont generate stuff you dont want them to                                 | `imagenegprompt=sex,drugs,rock and roll`                                                                                                    |
+| imagebannedwords | A comma separated list of words and phrases which will be removed from any prompts globally                                                         | `imagebannedwords=sex,drugs,rock and roll`                                                                                                  |

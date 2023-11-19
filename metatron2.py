@@ -113,47 +113,47 @@ class MetatronClient(discord.Client):
                 if SETTINGS["enableword"][0] == "True":
 
                     if action == 'wordgenforget':
-                        message = args[2]
-                        await clear_history(message)
-                        llm_clear_history_logger = logger.bind(user=message.author.name, userid=message.author.id)
+                        user = args[2]
+                        await clear_history(user)
+                        llm_clear_history_logger = logger.bind(user=user.name, userid=user.id)
                         llm_clear_history_logger.success("WORDGEN History Cleared.")
 
                     elif action == 'wordgengenerate':
-                        message, stripped_message, reroll = args[2:5]
+                        channel, user, prompt, negative_prompt, reroll = args[2:7]
                         if reroll:
-                            await delete_last_history(message)
-                        response = await llm_generate(message, stripped_message, self.llm_model, self.llm_tokenizer)
-                        if message.author.id in self.llm_view_last_message:  # check if there are an existing set of llm buttons for the user and if so, delete them
+                            await delete_last_history(user)
+                        response = await llm_generate(user, prompt, negative_prompt, self.llm_model, self.llm_tokenizer)
+                        if user.id in self.llm_view_last_message:  # check if there are an existing set of llm buttons for the user and if so, delete them
                             try:
-                                await self.llm_view_last_message[message.author.id].delete()
+                                await self.llm_view_last_message[user.id].delete()
                             except discord.NotFound:
                                 pass  # Message not found, might have been deleted already
-                        if message.author.id in self.llm_chunks_messages:
-                            for chunk_message in self.llm_chunks_messages[message.author.id]:
+                        if user.id in self.llm_chunks_messages:
+                            for chunk_message in self.llm_chunks_messages[user.id]:
                                 if reroll:
                                     try:
                                         await chunk_message.delete()
                                     except discord.NotFound:
                                         pass  # Message not found, might have been deleted already
-                            del self.llm_chunks_messages[message.author.id]
+                            del self.llm_chunks_messages[user.id]
                         chunks = [response[i:i + 1500] for i in range(0, len(response), 1500)]
-                        if message.author.id not in self.llm_chunks_messages:
-                            self.llm_chunks_messages[message.author.id] = []
+                        if user.id not in self.llm_chunks_messages:
+                            self.llm_chunks_messages[user.id] = []
                         for chunk in chunks:
-                            chunk_message = await message.channel.send(chunk)
-                            self.llm_chunks_messages[message.author.id].append(chunk_message)
-                        new_message = await message.channel.send(
-                            view=Wordgenbuttons(self.generation_queue, message.author.id, message, stripped_message, self))  # send the message with the llm buttons
-                        self.llm_view_last_message[message.author.id] = new_message  # track the message id of the last set of llm buttons for each user
-                        llm_reply_logger = logger.bind(user=message.author.name, prompt=stripped_message)
+                            chunk_message = await channel.send(chunk)
+                            self.llm_chunks_messages[user.id].append(chunk_message)
+                        new_message = await channel.send(view=Wordgenbuttons(self.generation_queue, user.id, prompt, negative_prompt, self))  # send the message with the llm buttons
+                        self.llm_view_last_message[user.id] = new_message  # track the message id of the last set of llm buttons for each user
+                        llm_reply_logger = logger.bind(user=user.name, prompt=prompt, negative=negative_prompt)
                         llm_reply_logger.success("WORDGEN Reply")
                         with torch.no_grad():  # clear torch gpu cache, freeing up vram
                             torch.cuda.empty_cache()
                         gc.collect()  # clear python garbage, freeing up ram (and maybe vram?)
 
                     elif action == 'wordgendeletelast':
-                        await delete_last_history(message)
-                        llm_delete_last_logger = logger.bind(user=message.author.name, userid=message.author.id)
+                        user = args[2]
+                        await delete_last_history(user)
+                        llm_delete_last_logger = logger.bind(user=user.name, userid=user.id)
                         llm_delete_last_logger.success("WORDGEN Reply Deleted.")
 
                     elif action == 'wordgenimpersonate':
@@ -264,15 +264,33 @@ class MetatronClient(discord.Client):
                 return  # check if LLM generation is enabled
             if str(message.author.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
                 return  # Exit the function if the author is banned
-            stripped_message = re.sub(r'<[^>]+>', '', message.content).lstrip()  # this removes the user tag
+            prompt = re.sub(r'<[^>]+>', '', message.content).lstrip()  # this removes the user tag
             if await self.is_room_in_queue(message.author.id):
                 await self.generation_queue.put(
-                    ('wordgengenerate', message.author.id, message, stripped_message, False))
+                    ('wordgengenerate', message.author.id, message.channel, message.author, prompt, "", False))
             else:
                 await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
 
 
 client = MetatronClient(intents=discord.Intents.all())  # client intents
+
+
+@logger.catch
+@client.slash_command_tree.command()
+async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str] = ""):
+    if SETTINGS["enableword"][0] != "True":
+        await interaction.response.send_message("LLM generation is currently disabled.")
+        return  # check if LLM generation is enabled
+    if str(interaction.user.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
+        return  # Exit the function if the author is banned
+    if await client.is_room_in_queue(interaction.user.id):
+        await interaction.response.send_message("Generating words...", ephemeral=True, delete_after=5)
+        await client.generation_queue.put(('wordgengenerate', interaction.user.id, interaction.channel, interaction.user, prompt, negative_prompt, False))
+        await interaction.response.send_message(f'History inserted:\n User: {userprompt}\n LLM: {llmprompt}')
+    else:
+        await interaction.response.send_message(
+            "Queue limit reached, please wait until your current gen or gens finish")
+
 
 
 @logger.catch
@@ -285,8 +303,7 @@ async def impersonate(interaction: discord.Interaction, userprompt: str, llmprom
     if str(interaction.user.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
         return  # Exit the function if the author is banned
     if await client.is_room_in_queue(interaction.user.id):
-        await client.generation_queue.put(
-            ('wordgenimpersonate', interaction.user.id, userprompt, llmprompt, interaction.user.name))
+        await client.generation_queue.put(('wordgenimpersonate', interaction.user.id, userprompt, llmprompt, interaction.user.name))
         await interaction.response.send_message(f'History inserted:\n User: {userprompt}\n LLM: {llmprompt}')
     else:
         await interaction.response.send_message(
@@ -297,8 +314,7 @@ async def impersonate(interaction: discord.Interaction, userprompt: str, llmprom
 @client.slash_command_tree.command()
 @app_commands.choices(voicechoice=client.speak_voice_choices)
 @app_commands.rename(userprompt='prompt', voicechoice='voice')
-async def speakgen(interaction: discord.Interaction, userprompt: str,
-                   voicechoice: Optional[app_commands.Choice[str]] = None):
+async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoice: Optional[app_commands.Choice[str]] = None):
     """Slash command that generates speech"""
     if SETTINGS["enablespeak"][0] != "True":
         await interaction.response.send_message("Sound generation is currently disabled.")
