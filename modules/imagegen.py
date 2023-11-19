@@ -176,7 +176,8 @@ async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negative
     generate_width = math.ceil(width / 8) * 8
     generate_height = math.ceil(height / 8) * 8
     inputs = await get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed)
-    images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
+    with torch.no_grad():
+        images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
     pipeline.unload_lora_weights()
     sd_generate_logger.debug("IMAGEGEN Generate Finished.")
     composite_image_bytes = await make_image_grid(images)
