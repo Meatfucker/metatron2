@@ -11,6 +11,7 @@ from transformers.utils import logging as translogging
 from modules.settings import SETTINGS, get_defaults
 import warnings
 os.environ["TQDM_DISABLE"] = "1"  # Attempt to turn off the annoying progress bar
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 warnings.filterwarnings("ignore")
 translogging.set_verbosity_error()  # Try to silence transformers logging spam
 logger.remove()  # More of the same
@@ -56,7 +57,7 @@ async def llm_generate(user, prompt, negative_prompt, model, tokenizer):
     negative_input_ids = negative_input_ids.to('cuda')  # negative tokens to gpu
     llm_generate_logger = logger.bind(user=user.name, prompt=prompt, negative=negative_prompt)
     llm_generate_logger.debug("WORDGEN Generate Started.")
-    with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):  # enable flash attention for faster inference
+    with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
         output = await asyncio.to_thread(model.generate, input_ids, max_length=4096, temperature=0.2, do_sample=True, guidance_scale=2, negative_prompt_ids=negative_input_ids)
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True)  # turn the returned tokens into string
     llm_generate_logger.debug("WORDGEN Generate Completed")

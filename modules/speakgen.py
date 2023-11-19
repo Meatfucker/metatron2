@@ -10,6 +10,7 @@ from pydub import AudioSegment
 from modules.settings import SETTINGS
 import warnings
 os.environ["TQDM_DISABLE"] = "1"  # Attempt to disable annoying tqdm progress bars
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 warnings.filterwarnings("ignore")
 logger.remove()  # attempt to silence noisy library logging messages
 

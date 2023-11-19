@@ -16,7 +16,8 @@ from compel import Compel
 import discord
 from modules.settings import SETTINGS, get_defaults
 import warnings
-os.environ["TQDM_DISABLE"] = "1" 
+os.environ["TQDM_DISABLE"] = "1"
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 warnings.filterwarnings("ignore")
 difflogging.set_verbosity_error()  # Attempt to silence noisy diffusers log messages
 translogging.set_verbosity_error()  # Attempt to silence noisy transformers log messages

@@ -22,6 +22,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 os.environ["TQDM_DISABLE"] = "1"
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 logger.remove()  # Remove the default configuration
 
 if SETTINGS["enabledebug"][0] == "True":  # this sets up the base logger formatting
