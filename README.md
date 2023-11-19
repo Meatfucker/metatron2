@@ -24,6 +24,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 
 * Can be directly chatted with by tagging it or using /wordgen.
 * Negative prompts are also supported via /wordgen
+* Can summarize chatroom messages with /summarize
 * Keeps a per user history so it can maintain multiple conversations at once.
 * Replies can be rerolled.
 * History message pairs can be deleted via button or entire user history reset.

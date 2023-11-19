@@ -8,11 +8,7 @@ import discord
 from bark import SAMPLE_RATE, generate_audio, preload_models
 from pydub import AudioSegment
 from modules.settings import SETTINGS
-import warnings
-os.environ["TQDM_DISABLE"] = "1"  # Attempt to disable annoying tqdm progress bars
-os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
-warnings.filterwarnings("ignore")
-logger.remove()  # attempt to silence noisy library logging messages
+
 
 
 @logger.catch
@@ -75,7 +71,7 @@ class Speakgenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
-                await self.generation_queue.put(('speakgengenerate', self.userid, self.prompt, interaction.channel, self.voice_file, interaction.user.name))
+                await self.generation_queue.put(('speakgengenerate', self.userid, self.prompt, interaction.channel, self.voice_file, interaction.user))
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
     

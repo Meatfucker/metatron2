@@ -1,4 +1,4 @@
-# speakgen.py - Functions for stable diffusion capabilities
+# imagegen.py - Functions for stable diffusion capabilities
 import asyncio
 import io
 import math
@@ -6,22 +6,17 @@ import os
 import re
 import random
 import gc
+import diffusers.utils.logging
 import torch
 from loguru import logger
 from PIL import Image
 from diffusers import DiffusionPipeline, StableDiffusionPipeline, DPMSolverMultistepScheduler
-from diffusers.utils import logging as difflogging
-from transformers.utils import logging as translogging
 from compel import Compel
 import discord
 from modules.settings import SETTINGS, get_defaults
-import warnings
-os.environ["TQDM_DISABLE"] = "1"
-os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
-warnings.filterwarnings("ignore")
-difflogging.set_verbosity_error()  # Attempt to silence noisy diffusers log messages
-translogging.set_verbosity_error()  # Attempt to silence noisy transformers log messages
-logger.remove()  # attempt to silence noisy library log messages
+
+
+diffusers.utils.logging.set_verbosity_error()
 
 
 @logger.catch
@@ -176,6 +171,7 @@ async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negative
     generate_width = math.ceil(width / 8) * 8
     generate_height = math.ceil(height / 8) * 8
     inputs = await get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed)
+    pipeline.set_progress_bar_config(disable=True)
     with torch.no_grad():
         images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
     pipeline.unload_lora_weights()

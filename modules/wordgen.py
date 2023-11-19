@@ -10,12 +10,13 @@ from transformers import LlamaForCausalLM, LlamaTokenizer
 from transformers.utils import logging as translogging
 from modules.settings import SETTINGS, get_defaults
 import warnings
-os.environ["TQDM_DISABLE"] = "1"  # Attempt to turn off the annoying progress bar
-os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
+
+
 warnings.filterwarnings("ignore")
-translogging.set_verbosity_error()  # Try to silence transformers logging spam
 translogging.disable_progress_bar()
-logger.remove()  # More of the same
+translogging.set_verbosity_error()
+
+
 wordgen_user_history = {}  # This dict holds the histories for the users.
 
 
@@ -60,14 +61,29 @@ async def llm_generate(user, prompt, negative_prompt, model, tokenizer):
     llm_generate_logger.debug("WORDGEN Generate Started.")
     with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
         with torch.no_grad():
-            output = await asyncio.to_thread(model.generate, input_ids, max_length=4096, temperature=0.2, do_sample=True, guidance_scale=2, negative_prompt_ids=negative_input_ids)
+            output = await asyncio.to_thread(model.generate, input_ids, max_length=2048, temperature=0.2, do_sample=True, guidance_scale=2, negative_prompt_ids=negative_input_ids)
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True)  # turn the returned tokens into string
     llm_generate_logger.debug("WORDGEN Generate Completed")
     response_index = generated_text.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
     llm_response = generated_text[response_index + len("ASSISTANT:"):].strip()
     await save_history(generated_text, user.id)  # save the response to the users history
     return llm_response
- 
+
+async def llm_summary(user, prompt, model, tokenizer):
+    """function for generating chat summary with the llm"""
+    formatted_prompt = f'You generate detailed summaries of chat conversations.\n\nUSER:{prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
+    input_ids = tokenizer.encode(formatted_prompt, return_tensors="pt")  # turn prompt into tokens
+    input_ids = input_ids.to('cuda')  # send tokens to gpu
+    llm_summary_logger = logger.bind(user=user.name)
+    llm_summary_logger.debug("WORDGEN Summary Started.")
+    with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
+        with torch.no_grad():
+            output = await asyncio.to_thread(model.generate, input_ids, max_length=2048, temperature=0.2, do_sample=True, guidance_scale=2)
+    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)  # turn the returned tokens into string
+    llm_summary_logger.debug("WORDGEN Summary Completed")
+    response_index = generated_text.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
+    llm_response = generated_text[response_index + len("ASSISTANT:"):].strip()
+    return llm_response
 
 @logger.catch
 async def save_history(generated_text, user_id):
