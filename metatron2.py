@@ -57,6 +57,7 @@ class MetatronClient(discord.Client):
         self.sd_loras_choices = []  # the choices object for the discord imagegen loras ui
 
     async def setup_hook(self):
+        """This loads the various models before logging in to discord"""
         if SETTINGS["enableword"][0] == "True":
             logger.info("Loading LLM")
             self.llm_model, self.llm_tokenizer = await load_llm()  # load llm
@@ -86,14 +87,16 @@ class MetatronClient(discord.Client):
         logger.info("Logging in...")
 
     async def on_ready(self):
+        """Just prints the bots name to discord"""
         ready_logger = logger.bind(user=client.user.name, userid=client.user.id)
         ready_logger.info("Login Successful")
 
     async def process_queue(self):
+        """This is the primary queue for the bot. Anything that requires state be maintained goes through here"""
         while True:
             args = await self.generation_queue.get()
             action = args[0]  # first argument passed to queue should always be the action to do
-            user_id = args[1]
+            user_id = args[1]  # second should always be the user id.
             try:
                 if SETTINGS["enableword"][0] == "True":
 
@@ -150,30 +153,33 @@ class MetatronClient(discord.Client):
             except Exception as e:
                 logger.error(f'EXCEPTION: {e}')
             finally:
-                self.generation_queue_concurrency_list[user_id] -= 1
+                self.generation_queue_concurrency_list[user_id] -= 1  # Remove one from the users queue limit
 
     async def queue_image(self, prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, user_id, use_defaults):
-        channel_defaults = await get_defaults(channel.id)
+        """The queue function that calls the image generation"""
         if use_defaults is True:
+            channel_defaults = await get_defaults(channel.id)
             if channel_defaults is not None:
                 sd_defaults = channel_defaults
         else:
             sd_defaults = await get_defaults('global')
+
         if sdmodel is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor
-            if self.sd_loaded_model != sdmodel:
+            if self.sd_loaded_model != sdmodel:  #Only load the model if we dont already have it loaded
                 self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sdmodel)
-                self.sd_loaded_embeddings = []
+                self.sd_loaded_embeddings = []  # Since we loaded a new model, clear the loaded embeddings list
                 with torch.no_grad():  # clear gpu memory cache
                     torch.cuda.empty_cache()
                 gc.collect()  # clear python memory
         else:
-            if self.sd_loaded_model != sd_defaults["imagemodel"][0]:
+            if self.sd_loaded_model != sd_defaults["imagemodel"][0]:  # If the current model isnt the default model, load it.
                 self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sd_defaults["imagemodel"][0])
-                self.sd_loaded_embeddings = []
+                self.sd_loaded_embeddings = []  # Since we loaded a new model, clear the loaded embeddings list
             with torch.no_grad():  # clear gpu memory cache
                 torch.cuda.empty_cache()
             gc.collect()  # clear python memory
-        if batch_size is None:
+
+        if batch_size is None:  # Enforce various defaults
             batch_size = int(sd_defaults["imagebatchsize"][0])
         if steps is None:
             steps = int(sd_defaults["imagesteps"][0])
@@ -181,34 +187,35 @@ class MetatronClient(discord.Client):
             width = int(sd_defaults["imagewidth"][0])
         if height is None:
             height = int(sd_defaults["imageheight"][0])
-        if sd_defaults["imageprompt"][0] not in prompt:
+
+        if sd_defaults["imageprompt"][0] not in prompt:  # Combine the defaults with the users prompt and negative prompt.
             prompt = f'{sd_defaults["imageprompt"][0]} {prompt}'
         if sd_defaults["imagenegprompt"][0] not in negativeprompt:
             negativeprompt = f'{sd_defaults["imagenegprompt"][0]} {negativeprompt}'
-        self.sd_pipeline, prompt_to_gen = await load_sd_lora(self.sd_pipeline, prompt)
-        self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt_to_gen, self.sd_loaded_embeddings)
 
-        generated_image = await sd_generate(self.sd_pipeline, self.sd_compel_processor, prompt_to_gen, sdmodel, batch_size, negativeprompt, seed, steps, width, height)
+        self.sd_pipeline, prompt_to_gen = await load_sd_lora(self.sd_pipeline, prompt)  # Check the prompt for loras and load them if needed.
+        self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt_to_gen, self.sd_loaded_embeddings)  # Check the prompt for TIs and load them if needed.
+        generated_image = await sd_generate(self.sd_pipeline, self.sd_compel_processor, prompt_to_gen, sdmodel, batch_size, negativeprompt, seed, steps, width, height)  # Generate the image
 
-        sanitized_prompt = re.sub(r'[^\w\s\-.]', '', prompt)
+        sanitized_prompt = re.sub(r'[^\w\s\-.]', '', prompt)  # Make the prompt safe to be a filename.
         truncatedprompt = sanitized_prompt[:100]  # this avoids file name length limits
-        if SETTINGS["saveinjpg"][0] == "True":
+        if SETTINGS["saveinjpg"][0] == "True":  # Save and upload in jpg if enabled, otherwise PNG
             await self.save_output(truncatedprompt, generated_image, "jpg")
+            await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.jpg"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, steps, width, height, self, use_defaults))
         else:
             await self.save_output(truncatedprompt, generated_image, "png")
-        await channel.send(
-            content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"),
-            view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, steps, width, height, self, use_defaults))
+            await channel.send(content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"), view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, steps, width, height, self, use_defaults))
         imagegenreply_logger = logger.bind(user=username, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel)
         imagegenreply_logger.success("IMAGEGEN Replied")
         return
 
     async def queue_speak(self, prompt, channel, voicefile, user):
+        """This is the queue function that generates audio"""
         wav_bytes_io = await speak_generate(prompt, voicefile)  # this generates the audio
-        sanitized_prompt = re.sub(r'[^\w\s\-.]', '', prompt)
-        truncatedprompt = sanitized_prompt[:100]  # this avoids file name length limits
 
-        if SETTINGS["saveinmp3"][0] == "True":
+        sanitized_prompt = re.sub(r'[^\w\s\-.]', '', prompt)  # This makes the prompt safe to be a filename
+        truncatedprompt = sanitized_prompt[:100]  # this avoids file name length limits
+        if SETTINGS["saveinmp3"][0] == "True":  # If enabled, save and upload in mp3, otherwise wav.
             await self.save_output(truncatedprompt, wav_bytes_io, "mp3")
             await channel.send(content=f"Prompt:`{prompt}`", file=discord.File(wav_bytes_io, filename=f"{truncatedprompt}.mp3"), view=Speakgenbuttons(self.generation_queue, user.id, prompt, voicefile, self))
         else:
@@ -219,15 +226,19 @@ class MetatronClient(discord.Client):
         return
 
     async def queue_wordgen(self, channel, user, prompt, negative_prompt, reroll):
-        if reroll:
+        """This is the queue function that generates chat"""
+        if reroll:  # If its a reroll, delete the last history pair.
             await delete_last_history(user)
-        response = await llm_generate(user, prompt, negative_prompt, self.llm_model, self.llm_tokenizer)
+
+        response = await llm_generate(user, prompt, negative_prompt, self.llm_model, self.llm_tokenizer) # Generate the text
+
         if user.id in self.llm_view_last_message:  # check if there are an existing set of llm buttons for the user and if so, delete them
             try:
                 await self.llm_view_last_message[user.id].delete()
             except discord.NotFound:
-                pass  # Message not found, might have been deleted already
-        if user.id in self.llm_chunks_messages:
+                pass
+
+        if user.id in self.llm_chunks_messages:  # If its a reroll, delete the old messages
             for chunk_message in self.llm_chunks_messages[user.id]:
                 if reroll:
                     try:
@@ -235,7 +246,8 @@ class MetatronClient(discord.Client):
                     except discord.NotFound:
                         pass  # Message not found, might have been deleted already
             del self.llm_chunks_messages[user.id]
-        chunks = [response[i:i + 1500] for i in range(0, len(response), 1500)]
+
+        chunks = [response[i:i + 1500] for i in range(0, len(response), 1500)]  # Send and track the previously sent messages in case we have to delete them for reroll.
         if user.id not in self.llm_chunks_messages:
             self.llm_chunks_messages[user.id] = []
         for chunk in chunks:
@@ -248,8 +260,10 @@ class MetatronClient(discord.Client):
         return
 
     async def queue_summary(self, channel, user, prompt):
-        response = await llm_summary(user, prompt, self.llm_model, self.llm_tokenizer)
-        chunks = [response[i:i + 1500] for i in range(0, len(response), 1500)]
+        """This is the queue function that summarizes chat."""
+        response = await llm_summary(user, prompt, self.llm_model, self.llm_tokenizer)  # Generate the summary.
+
+        chunks = [response[i:i + 1500] for i in range(0, len(response), 1500)]  # Post the message
         for chunk in chunks:
             await channel.send(chunk)
         llm_summary_logger = logger.bind(user=user.name)
@@ -257,6 +271,7 @@ class MetatronClient(discord.Client):
         return
 
     async def is_room_in_queue(self, user_id):
+        """This checks the users current number of pending gens against the max, and if there is room, returns true, otherwise, false"""
         self.generation_queue_concurrency_list.setdefault(user_id, 0)
         user_queue_depth = int(SETTINGS.get("userqueuedepth", [1])[0])
         if self.generation_queue_concurrency_list[user_id] >= user_queue_depth:
@@ -265,6 +280,7 @@ class MetatronClient(discord.Client):
             return True
 
     async def save_output(self, prompt, file, filetype):
+        """This saves whatever file-like object its given with the extension its given, based on its prompt"""
         if SETTINGS["saveoutputs"][0] == "True":
             current_datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             basepath = f'{SETTINGS["savepath"][0]}/{current_datetime_str}-{prompt}'
@@ -275,6 +291,7 @@ class MetatronClient(discord.Client):
         return
 
     async def is_enabled_not_banned(self, module, user):
+        """This only returns true if the module is both enabled and the user is not banned"""
         if SETTINGS[module][0] != "True":
             return False  # check if LLM generation is enabled
         elif str(user.id) in SETTINGS.get("bannedusers", [""])[0].split(','):
@@ -283,6 +300,7 @@ class MetatronClient(discord.Client):
             return True
 
     async def on_message(self, message):
+        """This captures people talking to the bot in chat and responds."""
         if self.user.mentioned_in(message):
             if not await self.is_enabled_not_banned("enableword", message.author):
                 return
@@ -299,6 +317,7 @@ client = MetatronClient(intents=discord.Intents.all())  # client intents
 
 @client.slash_command_tree.command()
 async def summarize(interaction: discord.Interaction):
+    """This is the slash command for summarize."""
     if not await client.is_enabled_not_banned("enableword", interaction.user):
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
@@ -315,6 +334,7 @@ async def summarize(interaction: discord.Interaction):
 
 @client.slash_command_tree.command()
 async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str] = ""):
+    """This is the slash command for wordgen"""
     if not await client.is_enabled_not_banned("enableword", interaction.user):
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
@@ -328,6 +348,7 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
 
 @client.slash_command_tree.command()
 async def impersonate(interaction: discord.Interaction, userprompt: str, llmprompt: str):
+    """This is the slash command for impersonate"""
     if not await client.is_enabled_not_banned("enableword", interaction.user):
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
@@ -344,6 +365,7 @@ async def impersonate(interaction: discord.Interaction, userprompt: str, llmprom
 @app_commands.choices(voicechoice=client.speak_voice_choices)
 @app_commands.rename(userprompt='prompt', voicechoice='voice')
 async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoice: Optional[app_commands.Choice[str]] = None):
+    """This is the slash command for speakgen."""
     if not await client.is_enabled_not_banned("enablespeak", interaction.user):
         await interaction.response.send_message("Bark disabled or user banned", ephemeral=True, delete_after=5)
         return
@@ -365,6 +387,7 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
 @app_commands.choices(lorachoice=client.sd_loras_choices)
 @app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding', lorachoice='lora')
 async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+    """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enableimage", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
         return
