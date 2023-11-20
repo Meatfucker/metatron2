@@ -120,7 +120,7 @@ async def load_sd(model=None):
     pipeline = pipeline.to("cuda")  # push the pipeline to gpu
     load_sd_logger = logger.bind(model=model_id)
     load_sd_logger.success("SD Model Loaded.")
-    compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder)  # create the compel processor object for the pipeline
+    compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder, truncate_long_prompts=False)  # create the compel processor object for the pipeline
     with torch.no_grad():  # clear gpu memory cache
         torch.cuda.empty_cache()
     gc.collect()  # clear python memory
