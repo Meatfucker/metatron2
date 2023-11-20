@@ -195,6 +195,8 @@ class MetatronClient(discord.Client):
         if negativeprompt is not None:
             if sd_defaults["imagenegprompt"][0] not in negativeprompt:
                 negativeprompt = f'{sd_defaults["imagenegprompt"][0]} {negativeprompt}'
+        else:
+            negativeprompt = sd_defaults["imagenegprompt"][0]
 
         self.sd_pipeline, prompt_to_gen = await load_sd_lora(self.sd_pipeline, prompt)  # Check the prompt for loras and load them if needed.
         self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt_to_gen, self.sd_loaded_embeddings)  # Check the prompt for TIs and load them if needed.

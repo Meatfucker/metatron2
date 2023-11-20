@@ -10,7 +10,7 @@ import diffusers.utils.logging
 import torch
 from loguru import logger
 from PIL import Image
-from diffusers import DiffusionPipeline, StableDiffusionPipeline, DPMSolverMultistepScheduler
+from diffusers import DiffusionPipeline, StableDiffusionPipeline, DPMSolverSinglestepScheduler
 from compel import Compel
 import discord
 from modules.settings import SETTINGS, get_defaults
@@ -114,7 +114,7 @@ async def load_sd(model=None):
         else:  # This loads a huggingface based model, is the initial loading model for now.
             model_id = "runwayml/stable-diffusion-v1-5"
             pipeline = await asyncio.to_thread(DiffusionPipeline.from_pretrained, model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True)
-    pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)  # This is the sampler, I may make it configurable in the future
+    pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(pipeline.scheduler.config)  # This is the sampler, I may make it configurable in the future
     pipeline = pipeline.to("cuda")  # push the pipeline to gpu
     load_sd_logger = logger.bind(model=model_id)
     load_sd_logger.success("SD Model Loaded.")
