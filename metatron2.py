@@ -152,6 +152,7 @@ class MetatronClient(discord.Client):
 
             except Exception as e:
                 logger.error(f'EXCEPTION: {e}')
+                logger.error(f'ARGS: {args}')
             finally:
                 self.generation_queue_concurrency_list[user_id] -= 1  # Remove one from the users queue limit
 
@@ -188,10 +189,12 @@ class MetatronClient(discord.Client):
         if height is None:
             height = int(sd_defaults["imageheight"][0])
 
-        if sd_defaults["imageprompt"][0] not in prompt:  # Combine the defaults with the users prompt and negative prompt.
-            prompt = f'{sd_defaults["imageprompt"][0]} {prompt}'
-        if sd_defaults["imagenegprompt"][0] not in negativeprompt:
-            negativeprompt = f'{sd_defaults["imagenegprompt"][0]} {negativeprompt}'
+        if prompt is not None:
+            if sd_defaults["imageprompt"][0] not in prompt:  # Combine the defaults with the users prompt and negative prompt.
+                prompt = f'{sd_defaults["imageprompt"][0]} {prompt}'
+        if negativeprompt is not None:
+            if sd_defaults["imagenegprompt"][0] not in negativeprompt:
+                negativeprompt = f'{sd_defaults["imagenegprompt"][0]} {negativeprompt}'
 
         self.sd_pipeline, prompt_to_gen = await load_sd_lora(self.sd_pipeline, prompt)  # Check the prompt for loras and load them if needed.
         self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt_to_gen, self.sd_loaded_embeddings)  # Check the prompt for TIs and load them if needed.
