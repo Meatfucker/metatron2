@@ -160,11 +160,12 @@ class MetatronClient(discord.Client):
         else:
             sd_defaults = await get_defaults('global')
         if sdmodel is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor
-            self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sdmodel)
-            self.sd_loaded_embeddings = []
-            with torch.no_grad():  # clear gpu memory cache
-                torch.cuda.empty_cache()
-            gc.collect()  # clear python memory
+            if self.sd_loaded_model != sdmodel:
+                self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sdmodel)
+                self.sd_loaded_embeddings = []
+                with torch.no_grad():  # clear gpu memory cache
+                    torch.cuda.empty_cache()
+                gc.collect()  # clear python memory
         else:
             if self.sd_loaded_model != sd_defaults["imagemodel"][0]:
                 self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sd_defaults["imagemodel"][0])
@@ -182,6 +183,8 @@ class MetatronClient(discord.Client):
             height = int(sd_defaults["imageheight"][0])
         if sd_defaults["imageprompt"][0] not in prompt:
             prompt = f'{sd_defaults["imageprompt"][0]} {prompt}'
+        if sd_defaults["imagenegprompt"][0] not in negativeprompt:
+            negativeprompt = f'{sd_defaults["imagenegprompt"][0]} {negativeprompt}'
         self.sd_pipeline, prompt_to_gen = await load_sd_lora(self.sd_pipeline, prompt)
         self.sd_pipeline, loaded_image_embeddings = await load_ti(self.sd_pipeline, prompt_to_gen, self.sd_loaded_embeddings)
 
