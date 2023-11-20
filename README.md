@@ -19,7 +19,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * TI embedding support
 * Configurable banned word list and mandatory negative prompt options for moderation purposes.
 * Images can be saved and uploaded in either png or jpg
-* Supports per channel default generation settings
+* Supports toggleable per channel default generation settings
 
 ![metatron2](/assets/wordgenexample.png)
 
