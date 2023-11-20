@@ -203,7 +203,7 @@ class MetatronClient(discord.Client):
             await self.save_output(truncatedprompt, generated_image, "png")
         await channel.send(
             content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"),
-            view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, steps, width, height, self))
+            view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, steps, width, height, self, use_defaults))
         imagegenreply_logger = logger.bind(user=username, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel)
         imagegenreply_logger.success("IMAGEGEN Replied")
         return

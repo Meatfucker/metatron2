@@ -201,7 +201,7 @@ async def make_image_grid(images):
 
 class Imagegenbuttons(discord.ui.View):
     """Class for the ui buttons on speakgen"""
-    def __init__(self, generation_queue, prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, steps, width, height, metatron_client):
+    def __init__(self, generation_queue, prompt, channel, sdmodel, batch_size, username, userid, negativeprompt, steps, width, height, metatron_client, use_defaults):
         super().__init__()
         self.timeout = None  # Disables the timeout on the buttons
         self.generation_queue = generation_queue
@@ -218,6 +218,7 @@ class Imagegenbuttons(discord.ui.View):
         self.width = width
         self.height = height
         self.metatron_client = metatron_client
+        self.use_defaults = use_defaults
 
     @discord.ui.button(label='Reroll', emoji="🎲", style=discord.ButtonStyle.grey)
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -225,7 +226,7 @@ class Imagegenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
-                await self.generation_queue.put(('imagegenerate', interaction.user.id, self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, self.negativeprompt, self.seed, self.steps, self.width, self.height, False))
+                await self.generation_queue.put(('imagegenerate', interaction.user.id, self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, self.negativeprompt, self.seed, self.steps, self.width, self.height, self.use_defaults))
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
 
