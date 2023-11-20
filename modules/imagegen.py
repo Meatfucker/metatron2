@@ -233,7 +233,7 @@ class Imagegenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid) == True:
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
-                await self.generation_queue.put(('imagegenerate', interaction.user.id, self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, self.negativeprompt, self.seed, self.steps, self.width, self.height))
+                await self.generation_queue.put(('imagegenerate', interaction.user.id, self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, self.negativeprompt, self.seed, self.steps, self.width, self.height, False))
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
 

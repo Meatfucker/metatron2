@@ -151,8 +151,8 @@ class MetatronClient(discord.Client):
                 if SETTINGS["enableimage"][0] == "True":
 
                     if action == 'imagegenerate':
-                        prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height = args[2:12]
-                        await self.queue_image(prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, user_id)
+                        prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, use_defaults = args[2:13]
+                        await self.queue_image(prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, user_id, use_defaults)
                         with torch.no_grad():  # clear gpu memory cache
                             torch.cuda.empty_cache()
                         gc.collect()  # clear python memory
@@ -162,10 +162,11 @@ class MetatronClient(discord.Client):
             finally:
                 self.generation_queue_concurrency_list[user_id] -= 1
 
-    async def queue_image(self, prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, user_id):
+    async def queue_image(self, prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, user_id, use_defaults):
         channel_defaults = await get_defaults(channel.id)
-        if channel_defaults is not None:
-            sd_defaults = channel_defaults
+        if use_defaults is True:
+            if channel_defaults is not None:
+                sd_defaults = channel_defaults
         else:
             sd_defaults = await get_defaults('global')
         if sdmodel is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor
@@ -368,8 +369,7 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
 @app_commands.choices(embeddingchoice=client.sd_embedding_choices)
 @app_commands.choices(lorachoice=client.sd_loras_choices)
 @app_commands.rename(userprompt='prompt', modelchoice='model', embeddingchoice='embedding', lorachoice='lora')
-async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None,
-                   height: Optional[int] = None):
+async def imagegen(interaction: discord.Interaction, userprompt: str, negativeprompt: Optional[str], modelchoice: Optional[app_commands.Choice[str]] = None, lorachoice: Optional[app_commands.Choice[str]] = None, embeddingchoice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     if not await client.is_enabled_not_banned("enableimage", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
         return
@@ -383,7 +383,7 @@ async def imagegen(interaction: discord.Interaction, userprompt: str, negativepr
         userprompt = f"{userprompt}{embeddingchoice.name}"
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
-        await client.generation_queue.put(('imagegenerate', interaction.user.id, userprompt, interaction.channel, modelselection, batch_size, interaction.user.name, negativeprompt, seed, steps, width, height))
+        await client.generation_queue.put(('imagegenerate', interaction.user.id, userprompt, interaction.channel, modelselection, batch_size, interaction.user.name, negativeprompt, seed, steps, width, height, use_defaults))
     else:
         await interaction.response.send_message(
             "Queue limit reached, please wait until your current gen or gens finish")
