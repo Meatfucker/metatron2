@@ -339,7 +339,7 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
     if await client.is_room_in_queue(interaction.user.id):
-        await interaction.response.send_message("Generating words...", ephemeral=True, delete_after=5)
+        await interaction.response.send_message(f'PROMPT:{prompt}\nNEGATIVE:{negative_prompt}')
         client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(('wordgengenerate', interaction.user.id, interaction.channel, interaction.user, prompt, negative_prompt, False))
     else:
