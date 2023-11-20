@@ -16,6 +16,7 @@ with open("settings.cfg", "r", encoding="utf-8") as settings_file:
 
 
 async def get_defaults(idname):
+    """ This function takes a filename and returns the defaults in it as a dict"""
     filename = f'defaults/{idname}.cfg'
     defaults = {}
     try:
@@ -31,5 +32,5 @@ async def get_defaults(idname):
                     else:
                         defaults[defaults_key] = [defaults_value]
     except FileNotFoundError:
-            return None
+        return None
     return defaults

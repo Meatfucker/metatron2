@@ -1,7 +1,6 @@
 """
 metatron2 - A discord machine learning bot
 """
-import os
 import io
 import re
 import sys
@@ -21,7 +20,6 @@ import gc
 import warnings
 
 warnings.filterwarnings("ignore")
-#os.environ["TQDM_DISABLE"] = "1"
 logger.remove()  # Remove the default configuration
 
 if SETTINGS["enabledebug"][0] == "True":  # this sets up the base logger formatting
@@ -205,11 +203,10 @@ class MetatronClient(discord.Client):
             await self.save_output(truncatedprompt, generated_image, "png")
         await channel.send(
             content=f"Prompt:`{prompt}` Negative:`{negativeprompt}` Model:`{sdmodel}` Batch Size:`{batch_size}` Seed:`{seed}` Steps:`{steps}` Width:`{width}` Height:`{height}` ", file=discord.File(generated_image, filename=f"{truncatedprompt}.png"),
-            view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, seed, steps, width, height, self))
+            view=Imagegenbuttons(self.generation_queue, prompt, channel, sdmodel, batch_size, username, user_id, negativeprompt, steps, width, height, self))
         imagegenreply_logger = logger.bind(user=username, prompt=prompt, negativeprompt=negativeprompt, model=sdmodel)
         imagegenreply_logger.success("IMAGEGEN Replied")
         return
-
 
     async def queue_speak(self, prompt, channel, voicefile, user):
         wav_bytes_io = await speak_generate(prompt, voicefile)  # this generates the audio
@@ -259,7 +256,7 @@ class MetatronClient(discord.Client):
         response = await llm_summary(user, prompt, self.llm_model, self.llm_tokenizer)
         chunks = [response[i:i + 1500] for i in range(0, len(response), 1500)]
         for chunk in chunks:
-            chunk_message = await channel.send(chunk)
+            await channel.send(chunk)
         llm_summary_logger = logger.bind(user=user.name)
         llm_summary_logger.success("SUMMARY Reply")
         return
@@ -315,7 +312,6 @@ async def summarize(interaction: discord.Interaction):
         channel_history = [message async for message in interaction.channel.history(limit=40)]
         compiled_messages = '\n'.join([f'{msg.author}: {msg.content}' for msg in channel_history])
         prompt = f'Give a detailed summary of the following chat room conversation: {compiled_messages}'
-        negative_prompt = ""
         await client.generation_queue.put(('wordgensummary', interaction.user.id, interaction.channel, interaction.user, prompt))
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)

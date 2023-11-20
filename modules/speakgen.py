@@ -10,15 +10,12 @@ from pydub import AudioSegment
 from modules.settings import SETTINGS
 
 
-
-@logger.catch
 async def load_bark():
     """This loads the bark models"""
     preload_models()
     logger.success("Bark Loaded.")
 
 
-@logger.catch
 async def load_voices():
     """Get list of voices for user interface"""
     voices = []
@@ -29,7 +26,6 @@ async def load_voices():
     return voices
 
 
-@logger.catch
 async def speak_generate(prompt, voice_file):
     """Function to generate speech"""
     speak_generate_logger = logger.bind(prompt=prompt)
@@ -54,7 +50,6 @@ async def speak_generate(prompt, voice_file):
 
 class Speakgenbuttons(discord.ui.View):
     """Class for the ui buttons on speakgen"""
-
     def __init__(self, generation_queue, userid, prompt, voice_file, metatron_client):
         super().__init__()
         self.timeout = None  # Disables the timeout on the buttons

@@ -1,5 +1,4 @@
 # wordgen.py - Functions for LLM capabilities
-import os
 import asyncio
 import io
 import json
@@ -11,16 +10,13 @@ from transformers.utils import logging as translogging
 from modules.settings import SETTINGS, get_defaults
 import warnings
 
-
 warnings.filterwarnings("ignore")
 translogging.disable_progress_bar()
 translogging.set_verbosity_error()
 
-
 wordgen_user_history = {}  # This dict holds the histories for the users.
 
 
-@logger.catch
 async def load_llm():
     """loads the llm"""
     if SETTINGS["usebigllm"][0] == "True":
@@ -40,7 +36,6 @@ async def load_llm():
     return model, tokenizer
 
 
-@logger.catch
 async def llm_generate(user, prompt, negative_prompt, model, tokenizer):
     """function for generating responses with the llm"""
     llm_defaults = await get_defaults('global')
@@ -55,7 +50,7 @@ async def llm_generate(user, prompt, negative_prompt, model, tokenizer):
         negative_input_ids = tokenizer.encode(llm_defaults["wordnegprompt"][0], return_tensors="pt")  # turn negative prompt into tokens
     else:
         combined_negative_prompt = f'{llm_defaults["wordnegprompt"][0]} {negative_prompt}'
-    negative_input_ids = tokenizer.encode(combined_negative_prompt, return_tensors="pt")  # turn negative prompt into tokens
+        negative_input_ids = tokenizer.encode(combined_negative_prompt, return_tensors="pt")  # turn negative prompt into tokens
     negative_input_ids = negative_input_ids.to('cuda')  # negative tokens to gpu
     llm_generate_logger = logger.bind(user=user.name, prompt=prompt, negative=negative_prompt)
     llm_generate_logger.debug("WORDGEN Generate Started.")
@@ -68,6 +63,7 @@ async def llm_generate(user, prompt, negative_prompt, model, tokenizer):
     llm_response = generated_text[response_index + len("ASSISTANT:"):].strip()
     await save_history(generated_text, user.id)  # save the response to the users history
     return llm_response
+
 
 async def llm_summary(user, prompt, model, tokenizer):
     """function for generating chat summary with the llm"""
@@ -85,7 +81,7 @@ async def llm_summary(user, prompt, model, tokenizer):
     llm_response = generated_text[response_index + len("ASSISTANT:"):].strip()
     return llm_response
 
-@logger.catch
+
 async def save_history(generated_text, user_id):
     """saves the prompt and llm response to the users history"""
     llm_defaults = await get_defaults('global')  # get default values
@@ -101,7 +97,6 @@ async def save_history(generated_text, user_id):
     wordgen_user_history[user_id].append(messagepair)  # add the message to the history
 
 
-@logger.catch
 async def load_history(user_id):
     """loads a users history into a single string and returns it"""
     if user_id in wordgen_user_history and wordgen_user_history[user_id]:
@@ -109,21 +104,18 @@ async def load_history(user_id):
         return combined_history
 
 
-@logger.catch
 async def clear_history(user):
     """deletes a users history"""
     if user.id in wordgen_user_history:
         del wordgen_user_history[user.id]
 
 
-@logger.catch
 async def delete_last_history(user):
     """deletes the last question/answer pair from a users history"""
     if user.id in wordgen_user_history:
         wordgen_user_history[user.id].pop()
 
 
-@logger.catch
 async def insert_history(userid, prompt, llm_prompt):
     """inserts a question/answer pair into a users history"""
     llm_defaults = await get_defaults('global')
@@ -133,7 +125,7 @@ async def insert_history(userid, prompt, llm_prompt):
     else:
         injectedhistory = f'USER:{prompt}\nASSISTANT:{llm_prompt}</s>\n'
     wordgen_user_history[userid].append(injectedhistory)
-        
+
 
 class Wordgenbuttons(discord.ui.View):
     """Class for the ui buttons on speakgen"""
@@ -147,7 +139,6 @@ class Wordgenbuttons(discord.ui.View):
         self.negative_prompt = negative_prompt
         self.metatron_client = metatron_client
 
-    @logger.catch
     @discord.ui.button(label='Reroll last reply', emoji="🎲", style=discord.ButtonStyle.grey)
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rerolls last reply"""
@@ -158,7 +149,6 @@ class Wordgenbuttons(discord.ui.View):
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
 
-    @logger.catch
     @discord.ui.button(label='Delete last reply', emoji="❌", style=discord.ButtonStyle.grey)
     async def delete_message(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Deletes message"""
@@ -169,7 +159,6 @@ class Wordgenbuttons(discord.ui.View):
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
 
-    @logger.catch
     @discord.ui.button(label='Show History', emoji="📜", style=discord.ButtonStyle.grey)
     async def dm_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Prints history to user"""
@@ -181,8 +170,7 @@ class Wordgenbuttons(discord.ui.View):
                 await interaction.response.send_message("No History", ephemeral=True, delete_after=5)
             llm_history_reply_logger = logger.bind(user=interaction.user.name)
             llm_history_reply_logger.success("WORDGEN Show History")
-    
-    @logger.catch
+
     @discord.ui.button(label='Wipe History', emoji="🤯", style=discord.ButtonStyle.grey)
     async def delete_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Deletes history"""
