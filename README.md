@@ -19,6 +19,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * TI embedding support
 * Configurable banned word list and mandatory negative prompt options for moderation purposes.
 * Images can be saved and uploaded in either png or jpg
+* Supports per channel default generation settings
 
 ![metatron2](/assets/wordgenexample.png)
 
@@ -101,10 +102,12 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | saveoutputs    | If set to True, will save generated images                                                                          | `saveoutputs=True`                       |
 | savepath       | The path where you want the images saved                                                                            | `savepath=outputs`                       |
 | userqueuedepth | The number of concurrent requests per user                                                                          | `userqueuedepth=2`                       |
+| maxbatch       | The maximum allowed batch size                                                                                      | `maxbatch=4`                             |
+| maxres         | The maximum allowed resolution                                                                                      | `maxres=512`                             |
 
 ## defaults/global.cfg
 
-global.cfg provides all of the generation defaults for the bot. If the example file has more than one line with the same first value, that means you can have multiple. 
+global.cfg provides all of the generation defaults for the bot. Copy it and rename it to a channels id to set defaults for a channel. something like `234234209732578.cfg`
 
 | OPTION           | DESCRIPTION                                                                                                                                         | EXAMPLE                                                                                                                                     |
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|

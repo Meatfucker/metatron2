@@ -163,7 +163,11 @@ class MetatronClient(discord.Client):
                 self.generation_queue_concurrency_list[user_id] -= 1
 
     async def queue_image(self, prompt, channel, sdmodel, batch_size, username, negativeprompt, seed, steps, width, height, user_id):
-        sd_defaults = await get_defaults('global')
+        channel_defaults = await get_defaults(channel.id)
+        if channel_defaults is not None:
+            sd_defaults = channel_defaults
+        else:
+            sd_defaults = await get_defaults('global')
         if sdmodel is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor
             self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd(sdmodel)
             self.sd_loaded_embeddings = []

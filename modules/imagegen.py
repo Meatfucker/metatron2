@@ -166,12 +166,18 @@ async def load_ti(pipeline, prompt, loaded_image_embeddings):
 @logger.catch
 async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negativeprompt, seed, steps, width, height):
     '''this generates the request, tiles the images, and returns them as a single image'''
-    sd_generate_logger = logger.bind(prompt=prompt, negative_prompt=negativeprompt, model=model)
-    sd_generate_logger.debug("IMAGEGEN Generate Started.")
+    if batch_size > int(SETTINGS["maxbatch"][0]):
+        batch_size = int(SETTINGS["maxbatch"][0])
+    if width > int(SETTINGS["maxres"][0]):
+        width = int(SETTINGS["maxres"][0])
+    if height > int(SETTINGS["maxres"][0]):
+        height = int(SETTINGS["maxres"][0])
     generate_width = math.ceil(width / 8) * 8
     generate_height = math.ceil(height / 8) * 8
     inputs = await get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed)
     pipeline.set_progress_bar_config(disable=True)
+    sd_generate_logger = logger.bind(prompt=prompt, negative_prompt=negativeprompt, model=model)
+    sd_generate_logger.debug("IMAGEGEN Generate Started.")
     with torch.no_grad():
         images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height) #do the generate in a thread so as not to lock up the bot client
     pipeline.unload_lora_weights()

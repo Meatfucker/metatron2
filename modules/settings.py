@@ -18,15 +18,18 @@ with open("settings.cfg", "r", encoding="utf-8") as settings_file:
 async def get_defaults(idname):
     filename = f'defaults/{idname}.cfg'
     defaults = {}
-    with open(filename, "r", encoding="utf-8") as defaults_file:
-        for defaults_line in defaults_file:
-            if "=" in defaults_line:
-                defaults_key, defaults_value = (defaults_line.split("=", 1)[0].strip(), defaults_line.split("=", 1)[1].strip())
-                if defaults_key in defaults:
-                    if isinstance(defaults[defaults_key], list):
-                        defaults[defaults_key].append(defaults_value)
+    try:
+        with open(filename, "r", encoding="utf-8") as defaults_file:
+            for defaults_line in defaults_file:
+                if "=" in defaults_line:
+                    defaults_key, defaults_value = (defaults_line.split("=", 1)[0].strip(), defaults_line.split("=", 1)[1].strip())
+                    if defaults_key in defaults:
+                        if isinstance(defaults[defaults_key], list):
+                            defaults[defaults_key].append(defaults_value)
+                        else:
+                            defaults[defaults_key] = [defaults[defaults_key], defaults_value]
                     else:
-                        defaults[defaults_key] = [defaults[defaults_key], defaults_value]
-                else:
-                    defaults[defaults_key] = [defaults_value]
+                        defaults[defaults_key] = [defaults_value]
+    except FileNotFoundError:
+            return None
     return defaults

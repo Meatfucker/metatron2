@@ -10,3 +10,5 @@ saveoutputs=True
 savepath=outputs
 bannedusers=3242134324,23423424,2342342342
 userqueuedepth=2
+maxbatch=4
+maxres=512
