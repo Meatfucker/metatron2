@@ -10,7 +10,7 @@ loras/*
 embeddings/*
 !embeddings/putembeddingshere.txt
 outputs/*
-!outputs/outputssavehere.txt
+!outputs/outputsaveshere.txt
 defaults/*
 !defaults/global.cfg.example
 .idea
