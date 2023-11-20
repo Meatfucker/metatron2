@@ -426,8 +426,7 @@ def run_program():
     try:
         loop.run_until_complete(client.start(SETTINGS["token"][0]))  # Start the bot
     except KeyboardInterrupt:
-        loop.run_until_complete(
-            quit_exit())  # If KeyboardInterrupt occurs during setup or start, perform cleanup and exit
+        loop.run_until_complete(quit_exit())  # If KeyboardInterrupt occurs during setup or start, perform cleanup and exit
     finally:
         loop.close()
 

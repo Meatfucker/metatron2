@@ -50,9 +50,7 @@ async def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
     else:
         generator = [torch.Generator("cuda").manual_seed(seed + i) for i in range(batch_size)]
     prompt, negativeprompt = await moderate_prompt(prompt, negativeprompt)  # Moderate prompt according to settings.
-    logger.debug(f'PROMPT: {prompt}')
-    logger.debug(f'NEG: {negativeprompt}')
-    prompt = format_prompt_weights(prompt)  # Apply compel weights
+    sprompt = format_prompt_weights(prompt)  # Apply compel weights
     prompts = batch_size * [prompt]
     with torch.no_grad():
         prompt_embeds = compel_proc(prompts)  # Make compel embeddings
