@@ -67,32 +67,36 @@ async def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
 async def load_models_list():
     """Get list of models for user interface"""
     models = []
-    models_list = os.listdir("models/")
-    for models_file in models_list:
-        if models_file.endswith(".safetensors"):
-            models.append(models_file)
+    models_dir = "models/"
+    with os.scandir(models_dir) as models_list:
+        for models_file in models_list:
+            if models_file.name.endswith(".safetensors"):
+                models.append(models_file.name)
     return models
 
 
 async def load_loras_list():
-    """Get list of models for user interface"""
+    """Get list of Loras for user interface"""
     loras = []
-    loras_list = os.listdir("loras/")
-    for loras_file in loras_list:
-        if loras_file.endswith(".safetensors"):
-            token_name = f"{loras_file[:-12]}"
-            loras.append(token_name)
+    loras_dir = "loras/"
+    with os.scandir(loras_dir) as loras_list:
+        for loras_file in loras_list:
+            if loras_file.name.endswith(".safetensors"):
+                token_name = f"{loras_file.name[:-12]}"
+                loras.append(token_name)
     return loras
 
 
+
 async def load_embeddings_list():
-    """Get list of models for user interface"""
+    """Get list of embeddings for user interface"""
     embeddings = []
-    embeddings_list = os.listdir("embeddings/")
-    for embeddings_file in embeddings_list:
-        if embeddings_file.endswith(".pt"):
-            token_name = f"<{embeddings_file[:-3]}>"
-            embeddings.append(token_name)
+    embeddings_dir = "embeddings/"
+    with os.scandir(embeddings_dir) as embeddings_list:
+        for embeddings_file in embeddings_list:
+            if embeddings_file.name.endswith(".pt"):
+                token_name = f"<{embeddings_file.name[:-3]}>"
+                embeddings.append(token_name)
     return embeddings
 
 
@@ -101,15 +105,15 @@ async def load_sd(model=None):
     logger.debug("SD Model Loading...")
     if model is not None:  # This loads a checkpoint file
         model_id = f'./models/{model}'
-        pipeline = StableDiffusionPipeline.from_single_file(model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+        pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
     else:
         sd_model_list = await load_models_list()
         if sd_model_list is not None:   # This loads a checkpoint file
             model_id = f'./models/{sd_model_list[0]}'
-            pipeline = StableDiffusionPipeline.from_single_file(model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+            pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
         else:  # This loads a huggingface based model, is the initial loading model for now.
             model_id = "runwayml/stable-diffusion-v1-5"
-            pipeline = DiffusionPipeline.from_pretrained(model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True)
+            pipeline = await asyncio.to_thread(DiffusionPipeline.from_pretrained, model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True)
     pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)  # This is the sampler, I may make it configurable in the future
     pipeline = pipeline.to("cuda")  # push the pipeline to gpu
     load_sd_logger = logger.bind(model=model_id)
@@ -226,6 +230,7 @@ class Imagegenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
+                self.metatron_client.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.generation_queue.put(('imagegenerate', interaction.user.id, self.prompt, interaction.channel, self.sdmodel, self.batch_size, self.username, self.negativeprompt, self.seed, self.steps, self.width, self.height, self.use_defaults))
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")

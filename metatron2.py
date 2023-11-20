@@ -23,19 +23,11 @@ warnings.filterwarnings("ignore")
 logger.remove()  # Remove the default configuration
 
 if SETTINGS["enabledebug"][0] == "True":  # this sets up the base logger formatting
-    logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True),
-               format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >16}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>",
-               level="DEBUG", colorize=True)
-    logger.add("bot.log", rotation="20 MB",
-               format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >8}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>",
-               level="DEBUG", colorize=False)
+    logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >16}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=True)
+    logger.add("bot.log", rotation="20 MB", format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <cyan>{name: >8}</cyan>:<light-cyan>{function: <14}</light-cyan> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="DEBUG", colorize=False)
 else:
-    logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True),
-               format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>",
-               level="INFO", colorize=True)
-    logger.add("bot.log", rotation="20 MB",
-               format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>",
-               level="INFO", colorize=True)
+    logger.add(sink=io.TextIOWrapper(sys.stdout.buffer, write_through=True), format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="INFO", colorize=True)
+    logger.add("bot.log", rotation="20 MB", format="<light-black>{time:YYYY-MM-DD HH:mm:ss}</light-black> | <level>{level: <8}</level> | <light-yellow>{message: ^27}</light-yellow> | <light-red>{extra}</light-red>", level="INFO", colorize=True)
 
 
 class MetatronClient(discord.Client):
@@ -267,7 +259,6 @@ class MetatronClient(discord.Client):
         if self.generation_queue_concurrency_list[user_id] >= user_queue_depth:
             return False
         else:
-            self.generation_queue_concurrency_list[user_id] += 1
             return True
 
     async def save_output(self, prompt, file, filetype):
@@ -294,6 +285,7 @@ class MetatronClient(discord.Client):
                 return
             prompt = re.sub(r'<[^>]+>', '', message.content).lstrip()  # this removes the user tag
             if await self.is_room_in_queue(message.author.id):
+                self.generation_queue_concurrency_list[message.author.id] += 1
                 await self.generation_queue.put(('wordgengenerate', message.author.id, message.channel, message.author, prompt, "", False))
             else:
                 await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
@@ -312,6 +304,7 @@ async def summarize(interaction: discord.Interaction):
         channel_history = [message async for message in interaction.channel.history(limit=40)]
         compiled_messages = '\n'.join([f'{msg.author}: {msg.content}' for msg in channel_history])
         prompt = f'Give a detailed summary of the following chat room conversation: {compiled_messages}'
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(('wordgensummary', interaction.user.id, interaction.channel, interaction.user, prompt))
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
@@ -324,6 +317,7 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
         return
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating words...", ephemeral=True, delete_after=5)
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(('wordgengenerate', interaction.user.id, interaction.channel, interaction.user, prompt, negative_prompt, False))
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
@@ -335,6 +329,7 @@ async def impersonate(interaction: discord.Interaction, userprompt: str, llmprom
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
     if await client.is_room_in_queue(interaction.user.id):
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(('wordgenimpersonate', interaction.user.id, userprompt, llmprompt, interaction.user.name))
         await interaction.response.send_message(f'History inserted:\n User: {userprompt}\n LLM: {llmprompt}')
     else:
@@ -355,6 +350,7 @@ async def speakgen(interaction: discord.Interaction, userprompt: str, voicechoic
         voiceselection = voicechoice.name
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Sound...", ephemeral=True, delete_after=5)
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(('speakgengenerate', interaction.user.id, userprompt, interaction.channel, voiceselection, interaction.user))
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
@@ -379,6 +375,7 @@ async def imagegen(interaction: discord.Interaction, userprompt: str, negativepr
         userprompt = f"{userprompt}{embeddingchoice.name}"
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(('imagegenerate', interaction.user.id, userprompt, interaction.channel, modelselection, batch_size, interaction.user.name, negativeprompt, seed, steps, width, height, use_defaults))
     else:
         await interaction.response.send_message(

@@ -66,6 +66,7 @@ class Speakgenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
+                self.metatron_client.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.generation_queue.put(('speakgengenerate', self.userid, self.prompt, interaction.channel, self.voice_file, interaction.user))
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")

@@ -145,6 +145,7 @@ class Wordgenbuttons(discord.ui.View):
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
+                self.metatron_client.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.generation_queue.put(('wordgengenerate', self.userid, interaction.channel, interaction.user, self.prompt, self.negative_prompt, True))
             else:
                 await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
@@ -154,6 +155,7 @@ class Wordgenbuttons(discord.ui.View):
         """Deletes message"""
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
+                self.metatron_client.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.generation_queue.put(('wordgendeletelast', self.userid, interaction.user))
                 await interaction.response.send_message("Last question/answer pair deleted", ephemeral=True, delete_after=5)
             else:
@@ -176,6 +178,7 @@ class Wordgenbuttons(discord.ui.View):
         """Deletes history"""
         if self.userid == interaction.user.id:
             if await self.metatron_client.is_room_in_queue(self.userid):
+                self.metatron_client.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.generation_queue.put(('wordgenforget', self.userid, interaction.user, self.prompt))
                 await interaction.response.send_message("History wiped", ephemeral=True, delete_after=5)
             else:
