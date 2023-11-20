@@ -39,7 +39,7 @@ async def moderate_prompt(prompt, negativeprompt):
     imagenegprompt_string = sd_defaults["imagenegprompt"][0]
     if negativeprompt is None:
         negativeprompt = ""
-    negativeprompt = imagenegprompt_string + " " + negativeprompt
+    negativeprompt = negativeprompt + " " + imagenegprompt_string
     return prompt, negativeprompt
 
 
@@ -50,6 +50,8 @@ async def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
     else:
         generator = [torch.Generator("cuda").manual_seed(seed + i) for i in range(batch_size)]
     prompt, negativeprompt = await moderate_prompt(prompt, negativeprompt)  # Moderate prompt according to settings.
+    logger.debug(f'PROMPT: {prompt}')
+    logger.debug(f'NEG: {negativeprompt}')
     prompt = format_prompt_weights(prompt)  # Apply compel weights
     prompts = batch_size * [prompt]
     with torch.no_grad():
