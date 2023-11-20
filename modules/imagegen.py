@@ -61,6 +61,7 @@ async def get_inputs(batch_size, prompt, negativeprompt, compel_proc, seed):
         negativeprompts = batch_size * [negativeprompt]
         with torch.no_grad():
             negative_prompt_embeds = compel_proc(negativeprompts)
+            [prompt_embeds, negative_prompt_embeds] = compel_proc.pad_conditioning_tensors_to_same_length([prompt_embeds, negative_prompt_embeds])
         return {"prompt_embeds": prompt_embeds, "negative_prompt_embeds": negative_prompt_embeds, "generator": generator}
     else:
         return {"prompt_embeds": prompt_embeds, "generator": generator}
@@ -178,7 +179,8 @@ async def sd_generate(pipeline, compel_proc, prompt, model, batch_size, negative
     sd_generate_logger = logger.bind(prompt=prompt, negative_prompt=negativeprompt, model=model)
     sd_generate_logger.debug("IMAGEGEN Generate Started.")
     with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
-        images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height)  # do the generate in a thread so as not to lock up the bot client
+        images = await asyncio.to_thread(pipeline, **inputs, num_inference_steps=steps, width=generate_width, height=generate_height,)  # do the generate in a thread so as not to lock up the bot client
+
     pipeline.unload_lora_weights()
     sd_generate_logger.debug("IMAGEGEN Generate Finished.")
     composite_image_bytes = await make_image_grid(images)  # Turn returned images into a single image
