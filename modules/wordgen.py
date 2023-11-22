@@ -22,10 +22,10 @@ async def load_llm():
     """loads the llm"""
     if SETTINGS["usebigllm"][0] == "True":
         model_name = "liuhaotian/llava-v1.5-13b"
-        model = LlamaForCausalLM.from_pretrained(model_name, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
+        model = LlamaForCausalLM.from_pretrained(model_name, model_type="llama", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
     else:
         model_name = "liuhaotian/llava-v1.5-7b"
-        model = LlamaForCausalLM.from_pretrained(model_name, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
+        model = LlamaForCausalLM.from_pretrained(model_name, model_type="llama", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
     model = model.to_bettertransformer()  # Use bettertransformers for more speed
     model.eval()
     if SETTINGS["usebigllm"][0] == "True":
