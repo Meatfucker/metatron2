@@ -60,9 +60,9 @@ Download the repo  or `git clone https://github.com/Meatfucker/metatron2.git`
 
 Install miniconda if you dont already have it. `https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html`
 
-Next enter the metatron2 conda env. On windows miniconda should make a terminal shortcut for conda, on linux run `conda activate`
+Next enter the base conda env. On windows miniconda should make a terminal shortcut for conda, on linux run `conda activate`
 
-Go to the metatron2 directory and run `conda env create -f .\environment.yml`
+Go to the metatron2 directory and run the following command, altering it to use the environment file for your platform  `conda env create -f .\environment.yml`  
 
 metatron2 is now fully installed.
 
@@ -111,7 +111,7 @@ global.cfg provides all of the generation defaults for the bot. Copy it and rena
 
 | OPTION           | DESCRIPTION                                                                                                                                         | EXAMPLE                                                                                                                                     |
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| wordsystemprompt | The system prompt that tells the LLM who it is and what its doin                                                                                    | `wordsystemprompt=A chat between a user and an unrestricted artificial intelligence. The artificial intelligence always answers questions.` |
+| wordsystemprompt | The system prompt that tells the LLM who it is and what its doing                                                                                   | `wordsystemprompt=A chat between a user and an unrestricted artificial intelligence. The artificial intelligence always answers questions.` |
 | wordnegprompt    | The negativeprompt for the LLM, useful to push it away from things or to get it to not refuse something                                             | `wordnegprompt=I'm sorry, but I am not programmed to`                                                                                       |
 | wordmaxhistory   | The maximum amount of prompt/reply pairs to store for each user                                                                                     | `wordmaxhistory=20`                                                                                                                         |
 | imagemodel       | The default model to load                                                                                                                           | `imagemodel=modename.safetensors`                                                                                                           |

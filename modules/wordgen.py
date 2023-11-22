@@ -93,7 +93,7 @@ class WordQueueObject:
             negative_input_ids = self.tokenizer.encode(combined_negative_prompt, return_tensors="pt")  # turn negative prompt into tokens
         negative_input_ids = negative_input_ids.to('cuda')  # negative tokens to gpu
         llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt, negative=self.negative_prompt)
-        llm_generate_logger.debug("WORDGEN Generate Started.")
+        llm_generate_logger.info("WORDGEN Generate Started.")
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
             with torch.no_grad():
                 output = await asyncio.to_thread(self.model.generate, input_ids, max_length=2048, temperature=0.2, do_sample=True, guidance_scale=2, negative_prompt_ids=negative_input_ids)
@@ -112,7 +112,7 @@ class WordQueueObject:
         input_ids = self.tokenizer.encode(formatted_prompt, return_tensors="pt")  # turn prompt into tokens
         input_ids = input_ids.to('cuda')  # send tokens to gpu
         llm_summary_logger = logger.bind(user=self.user.name)
-        llm_summary_logger.debug("WORDGEN Summary Started.")
+        llm_summary_logger.info("WORDGEN Summary Started.")
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
             with torch.no_grad():
                 output = await asyncio.to_thread(self.model.generate, input_ids, max_length=2048, temperature=0.2, do_sample=True, guidance_scale=2)

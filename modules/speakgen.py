@@ -47,7 +47,7 @@ class VoiceQueueObject:
     async def generate(self):
         """Generates audio"""
         speakgen_logger = logger.bind(prompt=self.prompt)  # Bind useful info to logurus extras dict
-        speakgen_logger.debug("SPEAKGEN Generate started")
+        speakgen_logger.info("SPEAKGEN Generate started")
 
         if self.voice_file is not None:  # If there is a voice file, include in the generation call.
             voice_path = f'voices/{self.voice_file}'
@@ -87,6 +87,7 @@ class VoiceQueueObject:
             await self.channel.send(content=f"Prompt:`{self.prompt}`", file=discord.File(self.audio, filename=f"{self.sanitized_prompt}.wav"), view=Speakgenbuttons(self))
         speakgenreply_logger = logger.bind(user=self.user.name, prompt=self.prompt)
         speakgenreply_logger.success("SPEAKGEN Replied")
+
 
 class Speakgenbuttons(discord.ui.View):
     """Class for the ui buttons on speakgen"""

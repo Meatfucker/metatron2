@@ -142,11 +142,12 @@ class ImageQueueObject:
         self.processed_negative_prompt = negative_prompt
         self.sd_defaults = None
         self.channel_defaults = None
-    @torch.no_grad
+
+    @torch.no_grad()
     async def generate(self):
+        """this generates the request, tiles the images, and returns them as a single image"""
         self.sd_defaults = await get_defaults('global')
         self.channel_defaults = await get_defaults(self.channel.id)
-        """this generates the request, tiles the images, and returns them as a single image"""
         if self.use_defaults is True:
             if self.channel_defaults is not None:
                 self.sd_defaults = self.channel_defaults
@@ -197,7 +198,7 @@ class ImageQueueObject:
         inputs = await self.get_inputs()  # This creates the prompt embeds
         self.metatron.sd_pipeline.set_progress_bar_config(disable=True)
         sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
-        sd_generate_logger.debug("IMAGEGEN Generate Started.")
+        sd_generate_logger.info("IMAGEGEN Generate Started.")
         with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
             images = await asyncio.to_thread(self.metatron.sd_pipeline, **inputs, num_inference_steps=self.steps, width=generate_width, height=generate_height,)  # do the generate in a thread so as not to lock up the bot client
             self.metatron.sd_pipeline.unload_lora_weights()
