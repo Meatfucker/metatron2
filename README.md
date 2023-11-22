@@ -59,7 +59,7 @@ Go to the URL Generator on the OAuth2 tab and select the bot scope. Then select 
 
 Download the repo  or `git clone https://github.com/Meatfucker/metatron2.git`
 
-Install miniconda if you dont already have it. `https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html`
+Install miniconda if you dont already have it. https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html
 
 Next enter the base conda env. On windows miniconda should make a terminal shortcut for conda, on linux run `conda activate`
 
