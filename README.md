@@ -23,6 +23,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 
 ![metatron2](/assets/wordgenexample.png)
 
+* Supports a 7B or 13B llm for configurable vram usage needs. See the usebigllm setting in settings.cfg.
 * Can be directly chatted with by tagging it or using /wordgen.
 * Negative prompts are also supported via /wordgen
 * Can summarize chatroom messages with /summarize
