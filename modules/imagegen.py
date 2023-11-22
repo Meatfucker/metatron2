@@ -183,6 +183,7 @@ class ImageQueueObject:
             self.height = int(SETTINGS["maxres"][0])
         generate_width = math.ceil(self.width / 8) * 8  # Dimensions have to be multiple of 8 or else SD shits itself.
         generate_height = math.ceil(self.height / 8) * 8
+
         if self.prompt is not None:
             if self.sd_defaults["imageprompt"][0] not in self.prompt:  # Combine the defaults with the users prompt and negative prompt.
                 self.prompt = f'{self.sd_defaults["imageprompt"][0]} {self.prompt}'
@@ -216,7 +217,7 @@ class ImageQueueObject:
         prompts = self.batch_size * [self.processed_prompt]
         with torch.no_grad():
             prompt_embeds = self.metatron.sd_compel_processor(prompts)  # Make compel embeddings
-        if self.negative_prompt is not None:
+        if self.processed_negative_prompt is not None:
             negativeprompts = self.batch_size * [self.processed_negative_prompt]
             with torch.no_grad():
                 negative_prompt_embeds = self.metatron.sd_compel_processor(negativeprompts)
