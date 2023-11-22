@@ -64,8 +64,7 @@ class MetatronClient(discord.Client):
                 self.speak_voice_choices.append(app_commands.Choice(name=voice, value=voice))
 
         if SETTINGS["enablesd"][0] == "True":
-            logger.info("Loading SD")
-            self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd()  # load the sd model pipeline and compel prompt processor
+
             sd_model_list = await load_models_list()  # get the list of available models to build the discord interface with
             for model in sd_model_list:
                 self.sd_model_choices.append(app_commands.Choice(name=model, value=model))
