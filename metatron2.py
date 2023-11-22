@@ -63,7 +63,7 @@ class MetatronClient(discord.Client):
             for voice in speak_voices_list:
                 self.speak_voice_choices.append(app_commands.Choice(name=voice, value=voice))
 
-        if SETTINGS["enableimage"][0] == "True":
+        if SETTINGS["enablesd"][0] == "True":
             logger.info("Loading SD")
             self.sd_pipeline, self.sd_compel_processor, self.sd_loaded_model = await load_sd()  # load the sd model pipeline and compel prompt processor
             sd_model_list = await load_models_list()  # get the list of available models to build the discord interface with
@@ -130,7 +130,7 @@ class MetatronClient(discord.Client):
                     if queue_request.action == "wordgeninject":
                         await queue_request.insert_history()
 
-                if SETTINGS["enableimage"][0] == "True":
+                if SETTINGS["enablesd"][0] == "True":
 
                     if queue_request.action == "imagegen":
                         await queue_request.generate()
@@ -177,7 +177,7 @@ client = MetatronClient(intents=discord.Intents.all())  # client intents
 @app_commands.choices(lora_choice=client.sd_loras_choices)
 async def imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, embedding_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
-    if not await client.is_enabled_not_banned("enableimage", interaction.user):
+    if not await client.is_enabled_not_banned("enablesd", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
         return
     if model_choice is None:

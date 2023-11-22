@@ -146,12 +146,22 @@ class ImageQueueObject:
     @torch.no_grad()
     async def generate(self):
         """this generates the request, tiles the images, and returns them as a single image"""
-        self.sd_defaults = await get_defaults('global')
-        self.channel_defaults = await get_defaults(self.channel.id)
-        if self.use_defaults is True:
-            if self.channel_defaults is not None:
-                self.sd_defaults = self.channel_defaults
 
+        await self.enforce_defaults_and_limits()
+        await self.load_request_or_default_model()
+        await self.load_sd_lora()  # Check the prompt for loras and load them if needed.
+        await self.load_ti()  # Check the prompt for TIs and load them if needed.
+        inputs = await self.get_inputs()  # This creates the prompt embeds
+        self.metatron.sd_pipeline.set_progress_bar_config(disable=True)  # This disables the annoying progress bar.
+        sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
+        sd_generate_logger.info("IMAGEGEN Generate Started.")
+        with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
+            images = await asyncio.to_thread(self.metatron.sd_pipeline, **inputs, num_inference_steps=self.steps, width=self.width, height=self.height)  # do the generate in a thread so as not to lock up the bot client
+            self.metatron.sd_pipeline.unload_lora_weights()  # Unload the loras so they dont effect future gens if they dont change models.
+        sd_generate_logger.debug("IMAGEGEN Generate Finished.")
+        self.image = await make_image_grid(images)  # Turn returned images into a single image
+
+    async def load_request_or_default_model(self):
         if self.model is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor
             if self.metatron.sd_loaded_model != self.model:  # Only load the model if we dont already have it loaded
                 self.metatron.sd_pipeline, self.metatron.sd_compel_processor, self.metatron.sd_loaded_model = await load_sd(self.model)
@@ -167,6 +177,13 @@ class ImageQueueObject:
                 torch.cuda.empty_cache()
             gc.collect()  # clear python memory
 
+    async def enforce_defaults_and_limits(self):
+        """The enforces the defaults and max limits"""
+        self.sd_defaults = await get_defaults('global')
+        self.channel_defaults = await get_defaults(self.channel.id)
+        if self.use_defaults is True:
+            if self.channel_defaults is not None:
+                self.sd_defaults = self.channel_defaults
         if self.batch_size is None:  # Enforce various defaults
             self.batch_size = int(self.sd_defaults["imagebatchsize"][0])
         if self.steps is None:
@@ -181,9 +198,8 @@ class ImageQueueObject:
             self.width = int(SETTINGS["maxres"][0])
         if self.height > int(SETTINGS["maxres"][0]):
             self.height = int(SETTINGS["maxres"][0])
-        generate_width = math.ceil(self.width / 8) * 8  # Dimensions have to be multiple of 8 or else SD shits itself.
-        generate_height = math.ceil(self.height / 8) * 8
-
+        self.width = math.ceil(self.width / 8) * 8  # Dimensions have to be multiple of 8 or else SD shits itself.
+        self.height = math.ceil(self.height / 8) * 8
         if self.prompt is not None:
             if self.sd_defaults["imageprompt"][0] not in self.prompt:  # Combine the defaults with the users prompt and negative prompt.
                 self.prompt = f'{self.sd_defaults["imageprompt"][0]} {self.prompt}'
@@ -192,19 +208,6 @@ class ImageQueueObject:
                 self.processed_negative_prompt = f'{self.sd_defaults["imagenegprompt"][0]} {self.processed_negative_prompt}'
         else:
             self.processed_negative_prompt = self.sd_defaults["imagenegprompt"][0]
-
-        await self.load_sd_lora()  # Check the prompt for loras and load them if needed.
-        await self.load_ti()  # Check the prompt for TIs and load them if needed.
-
-        inputs = await self.get_inputs()  # This creates the prompt embeds
-        self.metatron.sd_pipeline.set_progress_bar_config(disable=True)
-        sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
-        sd_generate_logger.info("IMAGEGEN Generate Started.")
-        with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
-            images = await asyncio.to_thread(self.metatron.sd_pipeline, **inputs, num_inference_steps=self.steps, width=generate_width, height=generate_height,)  # do the generate in a thread so as not to lock up the bot client
-            self.metatron.sd_pipeline.unload_lora_weights()
-        sd_generate_logger.debug("IMAGEGEN Generate Finished.")
-        self.image = await make_image_grid(images)  # Turn returned images into a single image
 
     async def get_inputs(self):
         """This multiples the prompt by the batch size and creates the weight embeddings"""
