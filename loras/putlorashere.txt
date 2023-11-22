@@ -1,2 +1,0 @@
-put your lora files in this directory.
-only safetensors loras are currently recognized.

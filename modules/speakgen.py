@@ -22,7 +22,7 @@ async def load_bark():
 async def load_voices():
     """Get list of voices for user interface"""
     voices = []
-    voices_list = os.listdir("voices/")
+    voices_list = os.listdir("models/voices/")
     for voice_file in voices_list:
         if voice_file.endswith(".npz"):
             voices.append(voice_file)
@@ -50,7 +50,7 @@ class VoiceQueueObject:
         speakgen_logger.info("SPEAKGEN Generate started")
 
         if self.voice_file is not None:  # If there is a voice file, include in the generation call.
-            voice_path = f'voices/{self.voice_file}'
+            voice_path = f'models/voices/{self.voice_file}'
             audio_array = await asyncio.to_thread(generate_audio, self.prompt, voice_path, silent=True)
         else:
             audio_array = await asyncio.to_thread(generate_audio, self.prompt, silent=True)

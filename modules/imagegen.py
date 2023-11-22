@@ -24,7 +24,7 @@ diffusers.utils.logging.set_verbosity_error()
 async def load_models_list():
     """Get list of models for user interface"""
     models = []
-    models_dir = "models/"
+    models_dir = "models/sd/"
     with os.scandir(models_dir) as models_list:
         for models_file in models_list:
             if models_file.name.endswith(".safetensors"):
@@ -35,7 +35,7 @@ async def load_models_list():
 async def load_loras_list():
     """Get list of Loras for user interface"""
     loras = []
-    loras_dir = "loras/"
+    loras_dir = "models/sd-loras/"
     with os.scandir(loras_dir) as loras_list:
         for loras_file in loras_list:
             if loras_file.name.endswith(".safetensors"):
@@ -47,7 +47,7 @@ async def load_loras_list():
 async def load_embeddings_list():
     """Get list of embeddings for user interface"""
     embeddings = []
-    embeddings_dir = "embeddings/"
+    embeddings_dir = "models/sd-embeddings/"
     with os.scandir(embeddings_dir) as embeddings_list:
         for embeddings_file in embeddings_list:
             if embeddings_file.name.endswith(".pt"):
@@ -60,12 +60,12 @@ async def load_sd(model=None):
     """Load a sd model, returning the pipeline object and the compel processor object for the pipeline"""
     logger.debug("SD Model Loading...")
     if model is not None:  # This loads a checkpoint file
-        model_id = f'./models/{model}'
+        model_id = f'./models/sd/{model}'
         pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
     else:
         sd_model_list = await load_models_list()
         if sd_model_list is not None:   # This loads a checkpoint file
-            model_id = f'./models/{sd_model_list[0]}'
+            model_id = f'./models/sd/{sd_model_list[0]}'
             pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
         else:  # This loads a huggingface based model, is a fallback for if there are no models
             model_id = "runwayml/stable-diffusion-v1-5"
@@ -266,7 +266,7 @@ class ImageQueueObject:
                 loraname, loraweight = match
                 loraweight = float(loraweight)  # Convert to a float if needed
                 lorafilename = f'{loraname}.safetensors'
-                self.metatron.sd_pipeline.load_lora_weights("./loras", weight_name=lorafilename, adapter_name=loraname)
+                self.metatron.sd_pipeline.load_lora_weights("./models/sd-loras", weight_name=lorafilename, adapter_name=loraname)
                 names.append(loraname)
                 weights.append(loraweight)
             self.metatron.sd_pipeline.set_adapters(names, adapter_weights=weights)
@@ -279,7 +279,7 @@ class ImageQueueObject:
         """this checks the prompt for textual inversion embeddings and loads them if needed, keeping track of used ones so it doesnt try to load the same one twice"""
         matches = re.findall(r'<(.*?)>', self.processed_prompt)
         for match in matches:
-            file_path = f"./embeddings/{match}.pt"
+            file_path = f".models/sd-embeddings/{match}.pt"
             token_name = f"<{match}>"
             if match not in self.metatron.sd_loaded_embeddings:
                 if os.path.exists(file_path):
