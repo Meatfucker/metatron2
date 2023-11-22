@@ -13,7 +13,7 @@ from loguru import logger
 from typing import Optional
 from modules.speakgen import VoiceQueueObject, load_bark, load_voices
 from modules.wordgen import WordQueueObject, load_llm
-from modules.imagegen import ImageQueueObject, load_sd, load_models_list, load_embeddings_list, load_loras_list
+from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list
 from modules.settings import SETTINGS
 import warnings
 
@@ -64,7 +64,6 @@ class MetatronClient(discord.Client):
                 self.speak_voice_choices.append(app_commands.Choice(name=voice, value=voice))
 
         if SETTINGS["enablesd"][0] == "True":
-
             sd_model_list = await load_models_list()  # get the list of available models to build the discord interface with
             for model in sd_model_list:
                 self.sd_model_choices.append(app_commands.Choice(name=model, value=model))

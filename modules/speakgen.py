@@ -32,17 +32,17 @@ async def load_voices():
 class VoiceQueueObject:
 
     def __init__(self, action, metatron, user, channel, prompt, voice_file=None, audio=None):
-        self.action = action
-        self.metatron = metatron
-        self.user = user
-        self.channel = channel
-        self.prompt = prompt
-        if voice_file is not None:
+        self.action = action  # This is the generation queue action
+        self.metatron = metatron  # This is the discord client
+        self.user = user  # This is the discord variable that contains user.name and user.id
+        self.channel = channel  # This is the discord variable for the channel, includes the functions to send messages, etc
+        self.prompt = prompt  # This is the users prompt
+        if voice_file is not None:  # This holds the voice file selection
             self.voice_file = voice_file.name
         else:
             self.voice_file = voice_file
-        self.audio = audio
-        self.sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.prompt)[:100]
+        self.audio = audio  # This holds the audio after generation
+        self.sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.prompt)[:100]  # This contains a prompt thats safe to use as a filename
 
     async def generate(self):
         """Generates audio"""

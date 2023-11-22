@@ -67,7 +67,7 @@ async def load_sd(model=None):
         if sd_model_list is not None:   # This loads a checkpoint file
             model_id = f'./models/{sd_model_list[0]}'
             pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
-        else:  # This loads a huggingface based model, is the initial loading model for now.
+        else:  # This loads a huggingface based model, is a fallback for if there are no models
             model_id = "runwayml/stable-diffusion-v1-5"
             pipeline = await asyncio.to_thread(DiffusionPipeline.from_pretrained, model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True)
     pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(pipeline.scheduler.config)  # This is the sampler, I may make it configurable in the future
@@ -124,24 +124,24 @@ async def get_defaults(idname):
 
 class ImageQueueObject:
     def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
-        self.action = action
-        self.metatron = metatron
-        self.user = user
-        self.channel = channel
-        self.prompt = prompt
-        self.negative_prompt = negative_prompt
-        self.model = model
-        self.batch_size = batch_size
-        self.seed = seed
-        self.steps = steps
-        self.width = width
-        self.height = height
-        self.use_defaults = use_defaults
-        self.image = None
-        self.processed_prompt = prompt
-        self.processed_negative_prompt = negative_prompt
-        self.sd_defaults = None
-        self.channel_defaults = None
+        self.action = action  # This is the queue action to do
+        self.metatron = metatron  # This is the discord client
+        self.user = user  # The discord user variable, contains .name and .id
+        self.channel = channel  # The discord channel variable, has a bunch of built in functions like sending messages
+        self.prompt = prompt  # The users prompt
+        self.negative_prompt = negative_prompt  # The users negative prompt
+        self.model = model  # The requested model
+        self.batch_size = batch_size  # The batch size
+        self.seed = seed  # The generation seed
+        self.steps = steps  # How many inference steps
+        self.width = width  # The gen width
+        self.height = height  # The gen height
+        self.use_defaults = use_defaults  # If this is set to true, itll use channel defaults, otherwise no. Server defaults are still enforced iirc
+        self.image = None  # This holds the resulting image after a generation call
+        self.processed_prompt = prompt  # This is the prompt that is sent to the generator after being moderated and having loras removed
+        self.processed_negative_prompt = negative_prompt  # This is the negative prompt the is sent to the generator after being moderated and having loras removed
+        self.sd_defaults = None  # This holds the global defauls
+        self.channel_defaults = None  # This holds the channel defaults
 
     @torch.no_grad()
     async def generate(self):

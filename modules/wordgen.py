@@ -61,17 +61,17 @@ async def get_defaults(idname):
 class WordQueueObject:
 
     def __init__(self, action, metatron, user, channel, prompt=None, negative_prompt=None, llm_prompt=None, reroll=False):
-        self.action = action
-        self.metatron = metatron
-        self.user = user
-        self.channel = channel
-        self.model = metatron.llm_model
-        self.tokenizer = metatron.llm_tokenizer
-        self.prompt = prompt
-        self.negative_prompt = negative_prompt
-        self.llm_prompt = llm_prompt
-        self.llm_response = None
-        self.reroll = reroll
+        self.action = action  # This is the queue generation action
+        self.metatron = metatron  # This is the discord client
+        self.user = user  # This is the discord user variable, contains user.name and user.id
+        self.channel = channel  # This is the discord channel variable/
+        self.model = metatron.llm_model  # This holds the current model pipeline
+        self.tokenizer = metatron.llm_tokenizer  # This holds the current model tokenizer
+        self.prompt = prompt  # This holds the users prompt
+        self.negative_prompt = negative_prompt  # This holds the users negative prompt
+        self.llm_prompt = llm_prompt  # This holds the llm prompt for /impersonate
+        self.llm_response = None  # This holds the resulting response from generate
+        self.reroll = reroll  # If this is true, when it generates text itll delete the last q/a pair and replace it with the new one.
 
     async def generate(self):
         """function for generating responses with the llm"""
