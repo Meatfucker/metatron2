@@ -1,0 +1,2 @@
+put your voice files in this directory.
+these can be created by using this repo, https://github.com/C0untFloyd/bark-gui

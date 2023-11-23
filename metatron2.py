@@ -14,6 +14,7 @@ from typing import Optional
 from modules.speakgen import VoiceQueueObject, load_bark, load_voices
 from modules.wordgen import WordQueueObject, load_llm
 from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list
+from modules.imagegen_xl import ImageXLQueueObject, load_sdxl_models_list, load_sdxl_loras_list, load_sdxl_refiners_list
 from modules.settings import SETTINGS
 import warnings
 
@@ -36,12 +37,15 @@ class MetatronClient(discord.Client):
         self.slash_command_tree = app_commands.CommandTree(self)  # the object that holds the command tree for the slash commands
         self.generation_queue = asyncio.Queue()  # the process queue object
         self.generation_queue_concurrency_list = {}  # A dict to keep track of how many requests each user has queued.
+
         self.speak_voice_choices = []  # The choices object for the discord speakgen ui
+
         self.llm_model = None
         self.llm_tokenizer = None
         self.llm_user_history = {}
         self.llm_view_last_message = {}  # variable to track word view buttons so there is only one set
         self.llm_chunks_messages = {}  # variable to track the body of the last reply
+
         self.sd_pipeline = None  # This is the diffusers stable diffusion pipeline object
         self.sd_compel_processor = None  # This is the diffusers compel processor object, which handles prompt weighting
         self.sd_model_choices = []  # The choices object for the discord imagegen models ui
@@ -49,6 +53,14 @@ class MetatronClient(discord.Client):
         self.sd_loaded_embeddings = []  # The list of currently loaded image embeddings
         self.sd_embedding_choices = []  # The choices object for the discord imagegen embeddings ui
         self.sd_loras_choices = []  # the choices object for the discord imagegen loras ui
+
+        self.sd_xl_pipeline = None
+        self.sd_xl_compel_processor = None
+        self.sd_xl_model_choices = []
+        self.sd_xl_loras_choices = []
+        self.sd_xl_loaded_model = None
+        self.sd_xl_loaded_refiner = None
+
 
     async def setup_hook(self):
         """This loads the various models before logging in to discord"""
@@ -73,6 +85,18 @@ class MetatronClient(discord.Client):
             sd_embeddings_list = await load_embeddings_list()  # get the list of available embeddings to build the discord interface with
             for embedding in sd_embeddings_list:
                 self.sd_embedding_choices.append(app_commands.Choice(name=embedding, value=embedding))
+
+        if SETTINGS["enablesdxl"][0] == "True":
+            sdxl_model_list = await load_sdxl_models_list()  # get the list of available models to build the discord interface with
+            for model in sdxl_model_list:
+                self.sd_xl_model_choices.append(app_commands.Choice(name=model, value=model))
+            sd_xl_loras_list = await load_sdxl_loras_list()  # get the list of available loras to build the interface with
+            for lora in sd_xl_loras_list:
+                self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
+
+
+
+
 
         self.loop.create_task(client.process_queue())  # start queue
         await self.slash_command_tree.sync()  # sync commands to discord
@@ -139,6 +163,17 @@ class MetatronClient(discord.Client):
                             await queue_request.save()
                         await queue_request.respond()
 
+                if SETTINGS["enablesdxl"][0] == "True":
+
+                    if queue_request.action == "xlimagegen":
+                        await queue_request.generate()
+                        with torch.no_grad():  # clear gpu memory cache
+                            torch.cuda.empty_cache()
+                        gc.collect()  # clear python memory
+                        if SETTINGS["saveoutputs"][0] == "True":
+                            await queue_request.save()
+                        await queue_request.respond()
+
             except Exception as e:
                 logger.error(f'EXCEPTION: {e}')
             finally:
@@ -167,6 +202,31 @@ class MetatronClient(discord.Client):
 
 
 client = MetatronClient(intents=discord.Intents.all())  # client intents
+
+
+@client.slash_command_tree.command()
+@app_commands.choices(model_choice=client.sd_xl_model_choices)
+@app_commands.choices(lora_choice=client.sd_loras_choices)
+async def xl_imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+    """This is the slash command for imagegen."""
+    if not await client.is_enabled_not_banned("enablesdxl", interaction.user):
+        await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
+        return
+    if model_choice is None:
+        model_selection = None
+    else:
+        model_selection = model_choice.name
+    if lora_choice is not None:
+        prompt = f"{prompt}<lora:{lora_choice.name}:1>"
+
+    xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, True)
+    if await client.is_room_in_queue(interaction.user.id):
+        await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
+        await client.generation_queue.put(xlimagegen_request)
+    else:
+        await interaction.response.send_message(
+            "Queue limit reached, please wait until your current gen or gens finish")
 
 
 @client.slash_command_tree.command()

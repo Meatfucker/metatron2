@@ -9,4 +9,8 @@ imageheight=512
 imageprompt=<lora:somelora:1> some prompt to add to every gen
 imagebannedwords=comma,separated,list,of,words,and phrases,that will be removed,from,prompts
 imagenegprompt=some negative prompt to add to every gen
-
+sdxlmodel=dreamshaperXL.safetensors
+sdxlsteps=50
+sdxlwidth=1024
+sdxlheight=1024
+sdxlbatchsize=1

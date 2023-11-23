@@ -5,8 +5,14 @@ models/voices/*
 !models/voices/putvoiceshere.txt
 models/sd/*
 !models/sd/putmodelshere.txt
+models/sd-xl/*
+!models/sd-xl/putmodelshere.txt
+models/sd-xl-refiners/*
+!models/sd-xl-refiners/putmodelshere.txt
 models/sd-loras/*
 !models/sd-loras/putlorashere.txt
+models/sd-xl-loras/*
+!models/sd-xl-loras/putlorashere.txt
 models/sd-embeddings/*
 !models/sd-embeddings/putembeddingshere.txt
 outputs/*
