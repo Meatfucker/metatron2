@@ -99,13 +99,15 @@ async def get_defaults(idname):
 
 
 class ImageXLQueueObject:
-    def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
+    def __init__(self, action, metatron, user, channel, prompt, prompt_2=None, negative_prompt=None, negative_prompt_2=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
         self.action = action  # This is the queue action to do
         self.metatron = metatron  # This is the discord client
         self.user = user  # The discord user variable, contains .name and .id
         self.channel = channel  # The discord channel variable, has a bunch of built in functions like sending messages
         self.prompt = prompt  # The users prompt
+        self.prompt_2 = prompt_2
         self.negative_prompt = negative_prompt  # The users negative prompt
+        self.negative_prompt_2 = negative_prompt_2
         self.model = model  # The requested model
         self.batch_size = batch_size  # The batch size
         self.seed = seed  # The generation seed
@@ -115,7 +117,9 @@ class ImageXLQueueObject:
         self.use_defaults = use_defaults  # If this is set to true, itll use channel defaults, otherwise no. Server defaults are still enforced iirc
         self.image = None  # This holds the resulting image after a generation call
         self.processed_prompt = prompt  # This is the prompt that is sent to the generator after being moderated and having loras removed
+        self.processed_prompt_2 = prompt_2
         self.processed_negative_prompt = negative_prompt  # This is the negative prompt the is sent to the generator after being moderated and having loras removed
+        self.processed_negative_prompt_2 = negative_prompt_2
         self.sd_defaults = None  # This holds the global defauls
         self.channel_defaults = None  # This holds the channel defaults
 
@@ -163,6 +167,7 @@ class ImageXLQueueObject:
         self.metatron.sd_xl_pipeline.set_progress_bar_config(disable=True)  # This disables the annoying progress bar.
         sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
         sd_generate_logger.info("IMAGEGEN Generate Started.")
+        logger.debug(f"INPUTS: {inputs}")
         with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
             images = await asyncio.to_thread(self.metatron.sd_xl_pipeline, **inputs, num_inference_steps=self.steps, width=self.width, height=self.height)  # do the generate in a thread so as not to lock up the bot client
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
@@ -210,11 +215,19 @@ class ImageXLQueueObject:
         if self.prompt is not None:
             if self.sd_defaults["imageprompt"][0] not in self.prompt:  # Combine the defaults with the users prompt and negative prompt.
                 self.prompt = f'{self.sd_defaults["imageprompt"][0]} {self.prompt}'
+        if self.prompt_2 is not None:
+            if self.sd_defaults["imageprompt"][0] not in self.prompt_2:  # Combine the defaults with the users prompt and negative prompt.
+                self.prompt_2 = f'{self.sd_defaults["imageprompt"][0]} {self.prompt_2}'
         if self.negative_prompt is not None:
             if self.sd_defaults["imagenegprompt"][0] not in self.processed_negative_prompt:
                 self.processed_negative_prompt = f'{self.sd_defaults["imagenegprompt"][0]} {self.processed_negative_prompt}'
         else:
             self.processed_negative_prompt = self.sd_defaults["imagenegprompt"][0]
+        if self.negative_prompt_2 is not None:
+            if self.sd_defaults["imagenegprompt"][0] not in self.processed_negative_prompt_2:
+                self.processed_negative_prompt_2 = f'{self.sd_defaults["imagenegprompt"][0]} {self.processed_negative_prompt_2}'
+        else:
+            self.processed_negative_prompt_2 = self.sd_defaults["imagenegprompt"][0]
 
 
     @logger.catch()
@@ -227,11 +240,20 @@ class ImageXLQueueObject:
         await self.moderate_prompt()  # Moderate prompt according to settings.
         await self.format_prompt_weights()  # Apply compel weights
         prompts = self.batch_size * [self.processed_prompt]
+        inputs_dict = {}
+        inputs_dict.update({"prompt": prompts})
+        if self.processed_prompt_2 is not None:
+            prompts_2 = self.batch_size * [self.processed_prompt_2]
+            inputs_dict.update({"prompt_2": prompts_2})
         if self.processed_negative_prompt is not None:
             negativeprompts = self.batch_size * [self.processed_negative_prompt]
-            return {"prompt": prompts, "negative_prompt": negativeprompts, "generator": generator}
-        else:
-            return {"prompt": prompts, "generator": generator}
+            inputs_dict.update({"negative_prompt": negativeprompts})
+        if self.processed_negative_prompt_2 is not None:
+            negativeprompts_2 = self.batch_size * [self.processed_negative_prompt_2]
+            inputs_dict.update({"negative_prompt_2": negativeprompts_2})
+
+        inputs_dict.update({"generator": generator})
+        return inputs_dict
 
     @logger.catch()
     async def format_prompt_weights(self):
@@ -242,13 +264,22 @@ class ImageXLQueueObject:
             number = match[1]
             replacement = ' '.join(f"({word}){number}" for word in words)
             self.processed_prompt = self.processed_prompt.replace(f"({match[0]}:{match[1]})", replacement)
+            if self.processed_prompt_2 is not None:
+                self.processed_prompt_2 = self.processed_prompt_2.replace(f"({match[0]}:{match[1]})", replacement)
+
         if self.negative_prompt is not None:
-            matches = re.findall(r'\((.*?)\:(.*?)\)', self.processed_negative_prompt)
             for match in matches:
                 words = match[0].split()
                 number = match[1]
                 replacement = ' '.join(f"({word}){number}" for word in words)
                 self.processed_negative_prompt = self.processed_negative_prompt.replace(f"({match[0]}:{match[1]})", replacement)
+
+        if self.negative_prompt_2 is not None:
+            for match in matches:
+                words = match[0].split()
+                number = match[1]
+                replacement = ' '.join(f"({word}){number}" for word in words)
+                self.processed_negative_prompt_2 = self.processed_negative_prompt_2.replace(f"({match[0]}:{match[1]})", replacement)
 
 
     @logger.catch()
@@ -257,10 +288,15 @@ class ImageXLQueueObject:
         banned_words = self.sd_defaults["imagebannedwords"][0].split(',')
         for word in banned_words:
             self.processed_prompt = self.processed_prompt.replace(word.strip(), '')
+            if self.processed_prompt_2 is not None:
+                self.processed_prompt_2 = self.processed_prompt_2.replace(word.strip(), '')
         imagenegprompt_string = self.sd_defaults["imagenegprompt"][0]
         if self.negative_prompt is None:
             self.processed_negative_prompt = ""
         self.processed_negative_prompt = self.processed_negative_prompt + " " + imagenegprompt_string
+        if self.negative_prompt_2 is None:
+            self.processed_negative_prompt_2 = ""
+        self.processed_negative_prompt_2 = self.processed_negative_prompt_2 + " " + imagenegprompt_string
 
 
 
@@ -280,10 +316,10 @@ class ImageXLQueueObject:
     async def respond(self):
         sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.processed_prompt)[:100]
         if SETTINGS["saveinjpg"][0] == "True":  # Save and upload in jpg if enabled, otherwise PNG
-            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` ", file=discord.File(self.image, filename=f"{sanitized_prompt}.jpg"), view=Imagegenbuttons(self))
+            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Prompt_2:`{self.prompt_2}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` ", file=discord.File(self.image, filename=f"{sanitized_prompt}.jpg"), view=Imagegenbuttons(self))
         else:
-            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` ", file=discord.File(self.image, filename=f"{sanitized_prompt}.png"), view=Imagegenbuttons(self))
-        imagegenreply_logger = logger.bind(user=self.user.name, prompt=self.prompt, negativeprompt=self.negative_prompt, model=self.model)
+            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Prompt_2:`{self.prompt_2}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` ", file=discord.File(self.image, filename=f"{sanitized_prompt}.png"), view=Imagegenbuttons(self))
+        imagegenreply_logger = logger.bind(user=self.user.name, prompt=self.prompt, prompt_2=self.prompt_2, negativeprompt=self.negative_prompt, model=self.model)
         imagegenreply_logger.success("IMAGEGEN Replied")
 
 

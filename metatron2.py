@@ -207,7 +207,7 @@ client = MetatronClient(intents=discord.Intents.all())  # client intents
 @client.slash_command_tree.command()
 @app_commands.choices(model_choice=client.sd_xl_model_choices)
 @app_commands.choices(lora_choice=client.sd_loras_choices)
-async def xl_imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: Optional[str], negative_prompt: Optional[str], negative_prompt_2: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enablesdxl", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
@@ -219,7 +219,7 @@ async def xl_imagegen(interaction: discord.Interaction, prompt: str, negative_pr
     if lora_choice is not None:
         prompt = f"{prompt}<lora:{lora_choice.name}:1>"
 
-    xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, True)
+    xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, prompt_2, negative_prompt, negative_prompt_2, model_selection, batch_size, seed, steps, width, height, True)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
         client.generation_queue_concurrency_list[interaction.user.id] += 1
