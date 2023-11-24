@@ -12,7 +12,7 @@ import diffusers.utils.logging
 import torch
 from loguru import logger
 from PIL import Image
-from diffusers import DiffusionPipeline, StableDiffusionPipeline, DPMSolverSinglestepScheduler
+from diffusers import DiffusionPipeline, StableDiffusionPipeline, DPMSolverSinglestepScheduler, DDIMScheduler
 from compel import Compel
 import discord
 from modules.settings import SETTINGS
@@ -61,16 +61,16 @@ async def load_sd(model=None):
     logger.debug("SD Model Loading...")
     if model is not None:  # This loads a checkpoint file
         model_id = f'./models/sd/{model}'
-        pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+        pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="stable_diffusion_tensorrt_txt2img", revision='fp16')
     else:
         sd_model_list = await load_models_list()
         if sd_model_list is not None:   # This loads a checkpoint file
             model_id = f'./models/sd/{sd_model_list[0]}'
-            pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+            pipeline = await asyncio.to_thread(StableDiffusionPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="stable_diffusion_tensorrt_txt2img", revision='fp16')
         else:  # This loads a huggingface based model, is a fallback for if there are no models
             model_id = "runwayml/stable-diffusion-v1-5"
             pipeline = await asyncio.to_thread(DiffusionPipeline.from_pretrained, model_id, safety_checker=None, torch_dtype=torch.float16, use_safetensors=True)
-    pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(pipeline.scheduler.config)  # This is the sampler, I may make it configurable in the future
+    pipeline.scheduler = DDIMScheduler.from_config(pipeline.scheduler.config)  # This is the sampler, I may make it configurable in the future
     pipeline = pipeline.to("cuda")  # push the pipeline to gpu
     load_sd_logger = logger.bind(model=model_id)
     load_sd_logger.success("SD Model Loaded.")
