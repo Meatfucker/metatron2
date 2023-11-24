@@ -146,7 +146,6 @@ class ImageXLQueueObject:
                     gc.collect()
                     model_id = f'./models/sd-xl/{sd_model_list[0]}'
                     self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="lpw_stable_diffusion_xl")
-        self.metatron.sd_xl_pipeline.scheduler = LCMScheduler.from_config(self.metatron.sd_xl_pipeline.scheduler.config)
         self.metatron.sd_xl_pipeline.enable_model_cpu_offload()
         self.metatron.sd_xl_loaded_model = self.model
 
