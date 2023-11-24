@@ -160,26 +160,27 @@ class ImageXLQueueObject:
 
     async def load_sdxl_lora(self):
         """ This loads a lora and applies it to a pipeline"""
-        loramatches = re.findall(r'<lora:([^:]+):([\d.]+)>', self.prompt)
-        if loramatches:
-            names = []
-            weights = []
-            logger.debug("LORA Loading...")
-            for match in loramatches:
-                loraname, loraweight = match
-                loraweight = float(loraweight)  # Convert to a float if needed
-                lorafilename = f'{loraname}.safetensors'
-                self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name="lora.safetensors", adapter_name="lora")
-                names.append("lora")
-                weights.append(1.0)
-                self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name=lorafilename, adapter_name=loraname)
-                names.append(loraname)
-                weights.append(loraweight)
-            self.metatron.sd_xl_pipeline.set_adapters(names, adapter_weights=weights)
-            self.processed_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', self.prompt)  # This removes the lora trigger from the users prompt so it doesnt effect the gen.
-            with torch.no_grad():  # clear gpu memory cache
+        with torch.no_grad():  # clear gpu memory cache
+            loramatches = re.findall(r'<lora:([^:]+):([\d.]+)>', self.prompt)
+            if loramatches:
+                names = []
+                weights = []
+                logger.debug("LORA Loading...")
+                for match in loramatches:
+                    loraname, loraweight = match
+                    loraweight = float(loraweight)  # Convert to a float if needed
+                    lorafilename = f'{loraname}.safetensors'
+                    self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name="lora.safetensors", adapter_name="lora")
+                    names.append("lora")
+                    weights.append(1.0)
+                    self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name=lorafilename, adapter_name=loraname)
+                    names.append(loraname)
+                    weights.append(loraweight)
+                self.metatron.sd_xl_pipeline.set_adapters(names, adapter_weights=weights)
+                self.processed_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', self.prompt)  # This removes the lora trigger from the users prompt so it doesnt effect the gen.
+
                 torch.cuda.empty_cache()
-            gc.collect()  # clear python memory
+                gc.collect()  # clear python memory
 
     @logger.catch()
     @torch.no_grad()
@@ -263,7 +264,7 @@ class ImageXLQueueObject:
             generator = [torch.Generator("cuda").manual_seed(random.randint(-2147483648, 2147483647)) for _ in range(self.batch_size)]
         else:
             generator = [torch.Generator("cuda").manual_seed(self.seed + i) for i in range(self.batch_size)]
-        await self.moderate_prompt()  # Moderate prompt according to settings.
+        #await self.moderate_prompt()  # Moderate prompt according to settings.
         prompts = self.batch_size * [self.processed_prompt]
         inputs_dict = {}
         inputs_dict.update({"prompt": prompts})

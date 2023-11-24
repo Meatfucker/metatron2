@@ -13,7 +13,8 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 ![metatron2](assets/imagegenexample2.png)
 
 * Stable Diffusion generation via /imagegen.
-* Preliminary SDXL generation via /xl_imagegen. No lora or refiner support yet.
+* SDXL generation via /xl_imagegen. No refiner or TI support currently, being worked on.
+* SDXL Long prompts, A1111 prompt weighting, and separate prompts for each text encoder.
 * Supports standard safetensors format models.
 * A1111 style prompt weighting and LORA loading.
 * Single LORA can be loaded from the selection menu, or multiple can be invoked at once using the standard A1111 prompt syntax
