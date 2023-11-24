@@ -93,7 +93,7 @@ class MetatronClient(discord.Client):
             sd_xl_loras_list = await load_sdxl_loras_list()  # get the list of available loras to build the interface with
             for lora in sd_xl_loras_list:
                 self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
-            logger.debug(self.sd_xl_loras_choices)
+
 
 
 

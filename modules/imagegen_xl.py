@@ -12,7 +12,7 @@ import diffusers.utils.logging
 import torch
 from loguru import logger
 from PIL import Image
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
+from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, LCMScheduler
 import discord
 from modules.settings import SETTINGS
 
@@ -52,7 +52,6 @@ async def load_sdxl_loras_list():
             if loras_file.name.endswith(".safetensors"):
                 token_name = f"{loras_file.name[:-12]}"
                 loras.append(token_name)
-    logger.debug(loras)
     return loras
 
 @logger.catch()
@@ -147,7 +146,7 @@ class ImageXLQueueObject:
                     gc.collect()
                     model_id = f'./models/sd-xl/{sd_model_list[0]}'
                     self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="lpw_stable_diffusion_xl")
-
+        self.metatron.sd_xl_pipeline.scheduler = LCMScheduler.from_config(self.metatron.sd_xl_pipeline.scheduler.config)
         self.metatron.sd_xl_pipeline.enable_model_cpu_offload()
         self.metatron.sd_xl_loaded_model = self.model
 
@@ -171,6 +170,9 @@ class ImageXLQueueObject:
                 loraname, loraweight = match
                 loraweight = float(loraweight)  # Convert to a float if needed
                 lorafilename = f'{loraname}.safetensors'
+                self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name="lora.safetensors", adapter_name="lora")
+                names.append("lora")
+                weights.append(1.0)
                 self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name=lorafilename, adapter_name=loraname)
                 names.append(loraname)
                 weights.append(loraweight)
