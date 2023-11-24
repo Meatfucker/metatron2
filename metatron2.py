@@ -93,6 +93,7 @@ class MetatronClient(discord.Client):
             sd_xl_loras_list = await load_sdxl_loras_list()  # get the list of available loras to build the interface with
             for lora in sd_xl_loras_list:
                 self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
+            logger.debug(self.sd_xl_loras_choices)
 
 
 
@@ -206,7 +207,7 @@ client = MetatronClient(intents=discord.Intents.all())  # client intents
 
 @client.slash_command_tree.command()
 @app_commands.choices(model_choice=client.sd_xl_model_choices)
-@app_commands.choices(lora_choice=client.sd_loras_choices)
+@app_commands.choices(lora_choice=client.sd_xl_loras_choices)
 async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: Optional[str], negative_prompt: Optional[str], negative_prompt_2: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enablesdxl", interaction.user):

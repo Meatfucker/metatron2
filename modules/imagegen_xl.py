@@ -52,6 +52,7 @@ async def load_sdxl_loras_list():
             if loras_file.name.endswith(".safetensors"):
                 token_name = f"{loras_file.name[:-12]}"
                 loras.append(token_name)
+    logger.debug(loras)
     return loras
 
 @logger.catch()
@@ -158,6 +159,27 @@ class ImageXLQueueObject:
             torch.cuda.empty_cache()
         gc.collect()  # clear python memory
 
+
+    async def load_sdxl_lora(self):
+        """ This loads a lora and applies it to a pipeline"""
+        loramatches = re.findall(r'<lora:([^:]+):([\d.]+)>', self.prompt)
+        if loramatches:
+            names = []
+            weights = []
+            logger.debug("LORA Loading...")
+            for match in loramatches:
+                loraname, loraweight = match
+                loraweight = float(loraweight)  # Convert to a float if needed
+                lorafilename = f'{loraname}.safetensors'
+                self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name=lorafilename, adapter_name=loraname)
+                names.append(loraname)
+                weights.append(loraweight)
+            self.metatron.sd_xl_pipeline.set_adapters(names, adapter_weights=weights)
+            self.processed_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', self.prompt)  # This removes the lora trigger from the users prompt so it doesnt effect the gen.
+            with torch.no_grad():  # clear gpu memory cache
+                torch.cuda.empty_cache()
+            gc.collect()  # clear python memory
+
     @logger.catch()
     @torch.no_grad()
     async def generate(self):
@@ -165,12 +187,14 @@ class ImageXLQueueObject:
 
         await self.enforce_defaults_and_limits()
         await self.load_request_or_default_model()
+        await self.load_sdxl_lora()
         inputs = await self.get_inputs()  # This creates the prompt embeds
         self.metatron.sd_xl_pipeline.set_progress_bar_config(disable=True)  # This disables the annoying progress bar.
         sd_generate_logger = logger.bind(prompt=self.prompt, prompt_2=self.prompt_2, negative_prompt=self.negative_prompt, negative_prompt_2=self.negative_prompt_2, model=self.model)
         sd_generate_logger.info("IMAGEGEN Generate Started.")
         with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
             images = await asyncio.to_thread(self.metatron.sd_xl_pipeline, **inputs, num_inference_steps=self.steps, width=self.width, height=self.height)  # do the generate in a thread so as not to lock up the bot client
+            self.metatron.sd_xl_pipeline.unload_lora_weights()
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
         self.image = await make_image_grid(images)  # Turn returned images into a single image
 
