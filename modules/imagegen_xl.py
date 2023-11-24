@@ -13,7 +13,7 @@ import torch
 from loguru import logger
 from PIL import Image
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
-from compel import Compel, ReturnedEmbeddingsType
+from compel import Compel
 import discord
 from modules.settings import SETTINGS
 
@@ -130,16 +130,19 @@ class ImageXLQueueObject:
         if self.model is not None:  # This loads a checkpoint file
             with torch.no_grad():  # clear gpu memory cache
                 self.metatron.sd_xl_pipeline = None
+                self.metatron.sd_xl_compel_processor = None
                 torch.cuda.empty_cache()
                 gc.collect()
 
                 model_id = f'./models/sd-xl/{self.model}'
                 self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+
         else:
             sd_model_list = await load_sdxl_models_list()
             if sd_model_list is not None:   # This loads a checkpoint file
                 with torch.no_grad():  # clear gpu memory cache
                     self.metatron.sd_xl_pipeline = None
+                    self.metatron.sd_xl_compel_processor = None
                     torch.cuda.empty_cache()
                     gc.collect()
                     model_id = f'./models/sd-xl/{sd_model_list[0]}'
@@ -165,9 +168,8 @@ class ImageXLQueueObject:
         await self.load_request_or_default_model()
         inputs = await self.get_inputs()  # This creates the prompt embeds
         self.metatron.sd_xl_pipeline.set_progress_bar_config(disable=True)  # This disables the annoying progress bar.
-        sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
+        sd_generate_logger = logger.bind(prompt=self.prompt, prompt_2=self.prompt_2, negative_prompt=self.negative_prompt, negative_prompt_2=self.negative_prompt_2, model=self.model)
         sd_generate_logger.info("IMAGEGEN Generate Started.")
-        logger.debug(f"INPUTS: {inputs}")
         with torch.no_grad():  # do the generate in a thread so as not to lock up the bot client, and no_grad to save memory.
             images = await asyncio.to_thread(self.metatron.sd_xl_pipeline, **inputs, num_inference_steps=self.steps, width=self.width, height=self.height)  # do the generate in a thread so as not to lock up the bot client
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
@@ -252,7 +254,6 @@ class ImageXLQueueObject:
             negativeprompts_2 = self.batch_size * [self.processed_negative_prompt_2]
             inputs_dict.update({"negative_prompt_2": negativeprompts_2})
 
-        inputs_dict.update({"generator": generator})
         return inputs_dict
 
     @logger.catch()
