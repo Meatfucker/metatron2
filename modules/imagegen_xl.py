@@ -13,7 +13,6 @@ import torch
 from loguru import logger
 from PIL import Image
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
-from compel import Compel
 import discord
 from modules.settings import SETTINGS
 
@@ -135,7 +134,7 @@ class ImageXLQueueObject:
                 gc.collect()
 
                 model_id = f'./models/sd-xl/{self.model}'
-                self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+                self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="lpw_stable_diffusion_xl")
 
         else:
             sd_model_list = await load_sdxl_models_list()
@@ -146,7 +145,7 @@ class ImageXLQueueObject:
                     torch.cuda.empty_cache()
                     gc.collect()
                     model_id = f'./models/sd-xl/{sd_model_list[0]}'
-                    self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True)
+                    self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="lpw_stable_diffusion_xl")
 
         self.metatron.sd_xl_pipeline.enable_model_cpu_offload()
         self.metatron.sd_xl_loaded_model = self.model
@@ -240,7 +239,6 @@ class ImageXLQueueObject:
         else:
             generator = [torch.Generator("cuda").manual_seed(self.seed + i) for i in range(self.batch_size)]
         await self.moderate_prompt()  # Moderate prompt according to settings.
-        await self.format_prompt_weights()  # Apply compel weights
         prompts = self.batch_size * [self.processed_prompt]
         inputs_dict = {}
         inputs_dict.update({"prompt": prompts})
@@ -255,32 +253,6 @@ class ImageXLQueueObject:
             inputs_dict.update({"negative_prompt_2": negativeprompts_2})
 
         return inputs_dict
-
-    @logger.catch()
-    async def format_prompt_weights(self):
-        """This takes a prompt, checks for A1111 style prompt weightings, and converts them to compel style weightings"""
-        matches = re.findall(r'\((.*?)\:(.*?)\)', self.processed_prompt)
-        for match in matches:
-            words = match[0].split()
-            number = match[1]
-            replacement = ' '.join(f"({word}){number}" for word in words)
-            self.processed_prompt = self.processed_prompt.replace(f"({match[0]}:{match[1]})", replacement)
-            if self.processed_prompt_2 is not None:
-                self.processed_prompt_2 = self.processed_prompt_2.replace(f"({match[0]}:{match[1]})", replacement)
-
-        if self.negative_prompt is not None:
-            for match in matches:
-                words = match[0].split()
-                number = match[1]
-                replacement = ' '.join(f"({word}){number}" for word in words)
-                self.processed_negative_prompt = self.processed_negative_prompt.replace(f"({match[0]}:{match[1]})", replacement)
-
-        if self.negative_prompt_2 is not None:
-            for match in matches:
-                words = match[0].split()
-                number = match[1]
-                replacement = ' '.join(f"({word}){number}" for word in words)
-                self.processed_negative_prompt_2 = self.processed_negative_prompt_2.replace(f"({match[0]}:{match[1]})", replacement)
 
 
     @logger.catch()
