@@ -170,9 +170,6 @@ class ImageXLQueueObject:
                     loraname, loraweight = match
                     loraweight = float(loraweight)  # Convert to a float if needed
                     lorafilename = f'{loraname}.safetensors'
-                    self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name="lora.safetensors", adapter_name="lora")
-                    names.append("lora")
-                    weights.append(1.0)
                     self.metatron.sd_xl_pipeline.load_lora_weights("./models/sd-xl-loras", weight_name=lorafilename, adapter_name=loraname)
                     names.append(loraname)
                     weights.append(loraweight)
