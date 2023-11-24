@@ -61,7 +61,6 @@ class MetatronClient(discord.Client):
         self.sd_xl_loaded_model = None
         self.sd_xl_loaded_refiner = None
 
-
     async def setup_hook(self):
         """This loads the various models before logging in to discord"""
         if SETTINGS["enableword"][0] == "True":
@@ -93,11 +92,6 @@ class MetatronClient(discord.Client):
             sd_xl_loras_list = await load_sdxl_loras_list()  # get the list of available loras to build the interface with
             for lora in sd_xl_loras_list:
                 self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
-
-
-
-
-
 
         self.loop.create_task(client.process_queue())  # start queue
         await self.slash_command_tree.sync()  # sync commands to discord
@@ -205,10 +199,16 @@ class MetatronClient(discord.Client):
 client = MetatronClient(intents=discord.Intents.all())  # client intents
 
 
-@client.slash_command_tree.command()
+@client.slash_command_tree.command(description="SDXL image generation")
+@app_commands.describe(prompt="The prompt for text encoder 1", prompt_2="The prompt for text encoder 2, if blank prompt is used.", negative_prompt="The negative prompt for text encoder 1",
+                       negative_prompt_2="The negative prompt for text encoder 2", model_choice="The model to use for generation", lora_choice="The lora to use in generation",
+                       batch_size="The number of images to generate", seed="The generation seed, if blank a random one is used", steps="The number of inference steps", width="Image width",
+                       height="Image height", use_defaults="Use channel defaults?")
 @app_commands.choices(model_choice=client.sd_xl_model_choices)
 @app_commands.choices(lora_choice=client.sd_xl_loras_choices)
-async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: Optional[str], negative_prompt: Optional[str], negative_prompt_2: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: Optional[str], negative_prompt: Optional[str], negative_prompt_2: Optional[str],
+                      model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None,
+                      seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enablesdxl", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
@@ -220,7 +220,7 @@ async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: O
     if lora_choice is not None:
         prompt = f"{prompt}<lora:{lora_choice.name}:1>"
 
-    xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, prompt_2, negative_prompt, negative_prompt_2, model_selection, batch_size, seed, steps, width, height, True)
+    xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, prompt_2, negative_prompt, negative_prompt_2, model_selection, batch_size, seed, steps, width, height, use_defaults)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
         client.generation_queue_concurrency_list[interaction.user.id] += 1
@@ -230,11 +230,16 @@ async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: O
             "Queue limit reached, please wait until your current gen or gens finish")
 
 
-@client.slash_command_tree.command()
+@client.slash_command_tree.command(description="Stable Diffusion image generation")
+@app_commands.describe(prompt="Prompt for generation", negative_prompt="Negative prompt for generation", model_choice="The model to use for generation", lora_choice="The lora to use for generation",
+                       embedding_choice="The embedding to use for generation", batch_size="Number of images to generate", seed="The seed to use for generation, if blank, a random one is used",
+                       steps="The steps to use for generation", width="Image width", height="Image height", use_defaults="Use channel defaults?")
 @app_commands.choices(model_choice=client.sd_model_choices)
 @app_commands.choices(embedding_choice=client.sd_embedding_choices)
 @app_commands.choices(lora_choice=client.sd_loras_choices)
-async def imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, embedding_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+async def imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None,
+                   lora_choice: Optional[app_commands.Choice[str]] = None, embedding_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None,
+                   seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enablesd", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
@@ -257,7 +262,8 @@ async def imagegen(interaction: discord.Interaction, prompt: str, negative_promp
             "Queue limit reached, please wait until your current gen or gens finish")
 
 
-@client.slash_command_tree.command()
+@client.slash_command_tree.command(description="This is used to insert message/reply pairs into your LLM user history")
+@app_commands.describe(user_prompt="Your sentence or statement", llm_prompt="The LLMs reply")
 async def impersonate(interaction: discord.Interaction, user_prompt: str, llm_prompt: str):
     """This is the slash command for impersonate"""
     if not await client.is_enabled_not_banned("enableword", interaction.user):
@@ -273,7 +279,7 @@ async def impersonate(interaction: discord.Interaction, user_prompt: str, llm_pr
             "Queue limit reached, please wait until your current gen or gens finish")
 
 
-@client.slash_command_tree.command()
+@client.slash_command_tree.command(description="LLM summary of the chatroom.")
 async def summarize(interaction: discord.Interaction):
     """This is the slash command for wordgen"""
     if not await client.is_enabled_not_banned("enableword", interaction.user):
@@ -288,7 +294,8 @@ async def summarize(interaction: discord.Interaction):
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
 
 
-@client.slash_command_tree.command()
+@client.slash_command_tree.command(description="LLM generation with optional negative prompts.")
+@app_commands.describe(prompt="Your prompt", negative_prompt="Your negative prompt")
 async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str] = ""):
     """This is the slash command for wordgen"""
     if not await client.is_enabled_not_banned("enableword", interaction.user):
@@ -303,7 +310,9 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
 
 
-@client.slash_command_tree.command()
+@client.slash_command_tree.command(description="Bark audio generation")
+@app_commands.describe(prompt="The sentence or sounds to generate. use [] around words for noises or sound effects, use ♪ for music",
+                       voice_file="The voice to use for generation, if blank the baseline voice is used")
 @app_commands.choices(voice_file=client.speak_voice_choices)
 @app_commands.rename(prompt='prompt', voice_file='voice')
 async def speakgen(interaction: discord.Interaction, prompt: str, voice_file: Optional[app_commands.Choice[str]] = None):

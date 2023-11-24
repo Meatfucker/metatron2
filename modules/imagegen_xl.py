@@ -261,7 +261,7 @@ class ImageXLQueueObject:
             generator = [torch.Generator("cuda").manual_seed(random.randint(-2147483648, 2147483647)) for _ in range(self.batch_size)]
         else:
             generator = [torch.Generator("cuda").manual_seed(self.seed + i) for i in range(self.batch_size)]
-        #await self.moderate_prompt()  # Moderate prompt according to settings.
+        await self.moderate_prompt()  # Moderate prompt according to settings.
         prompts = self.batch_size * [self.processed_prompt]
         inputs_dict = {}
         inputs_dict.update({"prompt": prompts})
