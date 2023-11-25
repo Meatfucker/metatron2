@@ -26,7 +26,7 @@ async def load_llm():
     else:
         model_name = "liuhaotian/llava-v1.5-7b"
         model = LlamaForCausalLM.from_pretrained(model_name, model_type="llama", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
-    model = model.to_bettertransformer()  # Use bettertransformers for more speed
+    #model = model.to_bettertransformer()  # Use bettertransformers for more speed - Disabled atm due to a conflict with hubert.
     model.eval()
     if SETTINGS["usebigllm"][0] == "True":
         tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-13b")  # load tokenizer
