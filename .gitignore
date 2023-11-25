@@ -20,3 +20,5 @@ outputs/*
 defaults/*
 !defaults/global.cfg.example
 .idea
+/models/hubert/hubert.pt
+/models/hubert/tokenizer_large.pth

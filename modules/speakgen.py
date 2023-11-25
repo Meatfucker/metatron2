@@ -31,7 +31,7 @@ async def load_voices():
 
 class VoiceQueueObject:
 
-    def __init__(self, action, metatron, user, channel, prompt, voice_file=None, audio=None):
+    def __init__(self, action, metatron, user, channel, prompt, voice_file=None, user_voice_file=None):
         self.action = action  # This is the generation queue action
         self.metatron = metatron  # This is the discord client
         self.user = user  # This is the discord variable that contains user.name and user.id
@@ -41,19 +41,24 @@ class VoiceQueueObject:
             self.voice_file = voice_file.name
         else:
             self.voice_file = voice_file
-        self.audio = audio  # This holds the audio after generation
+        self.user_voice_file = user_voice_file
+        self.audio = None  # This holds the audio after generation
         self.sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.prompt)[:100]  # This contains a prompt thats safe to use as a filename
 
     async def generate(self):
         """Generates audio"""
         speakgen_logger = logger.bind(prompt=self.prompt)  # Bind useful info to logurus extras dict
         speakgen_logger.info("SPEAKGEN Generate started")
-
-        if self.voice_file is not None:  # If there is a voice file, include in the generation call.
-            voice_path = f'models/voices/{self.voice_file}'
-            audio_array = await asyncio.to_thread(generate_audio, self.prompt, voice_path, silent=True)
+        if self.user_voice_file is not None:
+            await self.user_voice_file.save("outputs/voice.npz")
+            audio_array = await asyncio.to_thread(generate_audio, self.prompt, "outputs/voice.npz", silent=True)
+            os.remove("outputs/voice.npz")
         else:
-            audio_array = await asyncio.to_thread(generate_audio, self.prompt, silent=True)
+            if self.voice_file is not None:  # If there is a voice file, include in the generation call.
+                voice_path = f'models/voices/{self.voice_file}'
+                audio_array = await asyncio.to_thread(generate_audio, self.prompt, voice_path, silent=True)
+            else:
+                audio_array = await asyncio.to_thread(generate_audio, self.prompt, silent=True)
 
         speakgen_logger.debug("SPEAKGEN Generate finished")
 

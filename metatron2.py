@@ -11,10 +11,12 @@ import torch
 from discord import app_commands
 from loguru import logger
 from typing import Optional
+import numpy as np
 from modules.speakgen import VoiceQueueObject, load_bark, load_voices
 from modules.wordgen import WordQueueObject, load_llm
 from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list
 from modules.imagegen_xl import ImageXLQueueObject, load_sdxl_models_list, load_sdxl_loras_list, load_sdxl_refiners_list
+from modules.voiceclone import CloneQueueObject
 from modules.settings import SETTINGS
 import warnings
 
@@ -128,6 +130,14 @@ class MetatronClient(discord.Client):
                         if SETTINGS["saveoutputs"][0] == "True":
                             await queue_request.save()
                         await queue_request.respond()
+
+                    if queue_request.action == "voiceclone":
+                        if await queue_request.check_audio_format():
+                            if await queue_request.check_audio_duration():
+                                await queue_request.clone_voice()
+                                await queue_request.respond()
+
+
 
                 if SETTINGS["enableword"][0] == "True":
 
@@ -315,12 +325,30 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
                        voice_file="The voice to use for generation, if blank the baseline voice is used")
 @app_commands.choices(voice_file=client.speak_voice_choices)
 @app_commands.rename(prompt='prompt', voice_file='voice')
-async def speakgen(interaction: discord.Interaction, prompt: str, voice_file: Optional[app_commands.Choice[str]] = None):
+async def speakgen(interaction: discord.Interaction, prompt: str, voice_file: Optional[app_commands.Choice[str]] = None, user_voice_file: Optional[discord.Attachment] = None):
     """This is the slash command for speakgen."""
     if not await client.is_enabled_not_banned("enablespeak", interaction.user):
         await interaction.response.send_message("Bark disabled or user banned", ephemeral=True, delete_after=5)
         return
-    speakgen_request = VoiceQueueObject("speakgen", client, interaction.user, interaction.channel, prompt, voice_file)
+    if user_voice_file is not None:
+        input_data = await user_voice_file.read()
+        input_file = io.BytesIO(input_data)
+        input_file.seek(0)
+        try:
+            # Attempt to load the file as an npz file
+            npz_file = np.load(input_file)
+            # If successfully loaded without errors, check its attributes
+            if isinstance(npz_file, np.lib.npyio.NpzFile):
+                speakgen_request = VoiceQueueObject("speakgen", client, interaction.user, interaction.channel, prompt, voice_file, user_voice_file)
+            else:
+                await interaction.response.send_message("Supplied speaker file is not a voice.")
+                return
+
+        except Exception as e:
+                await interaction.response.send_message("Supplied speaker file is not a voice.")
+                return
+    else:
+        speakgen_request = VoiceQueueObject("speakgen", client, interaction.user, interaction.channel, prompt, voice_file)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Sound...", ephemeral=True, delete_after=5)
         client.generation_queue_concurrency_list[interaction.user.id] += 1
@@ -328,6 +356,24 @@ async def speakgen(interaction: discord.Interaction, prompt: str, voice_file: Op
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
 
+
+@client.slash_command_tree.command(description="Voice cloning")
+@app_commands.describe(user_audio_file="The audio file to clone, must be wav or mp3 and no longer than 30 seconds")
+async def voiceclone(interaction: discord.Interaction, user_audio_file: discord.Attachment):
+    if not await client.is_enabled_not_banned("enablespeak", interaction.user):
+        await interaction.response.send_message("Bark disabled or user banned", ephemeral=True, delete_after=5)
+        return
+
+    input_data = await user_audio_file.read()
+    input_file = io.BytesIO(input_data)
+    input_file.seek(0)
+    voiceclone_request = CloneQueueObject("voiceclone", client, interaction.user, interaction.channel, input_file, user_audio_file.filename)
+    if await client.is_room_in_queue(interaction.user.id):
+        await interaction.response.send_message("Cloning voice...", ephemeral=True, delete_after=5)
+        client.generation_queue_concurrency_list[interaction.user.id] += 1
+        await client.generation_queue.put(voiceclone_request)
+    else:
+        await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
 
 async def quit_exit():
     # Perform cleanup tasks here if needed before exiting

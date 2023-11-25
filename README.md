@@ -7,7 +7,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * LLM Chat
 * Stable Diffusion image generation
 * Stable Diffusion XL image generation
-* Bark audio generation
+* Bark audio generation and voice cloning.
 
 ![metatron2](assets/imagegenexample.png)
 ![metatron2](assets/imagegenexample2.png)
@@ -39,6 +39,8 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 ![metatron2](/assets/speakgenexample.png)
 
 * Speech, sound, and music generation via /speakgen
+* Voice cloning via /voiceclone - Thanks to gitmylo and his work here: https://github.com/gitmylo/bark-voice-cloning-HuBERT-quantizer
+* Users can upload up to a 30 second mp3 or wav file, and will get a voice file back. They can then supply that voice file themselves for speakgen gens, or put it in the model/voices directory so itll show up in the UI.
 * Can generate noises, emotions etc by enclosing word in []
 * Can generate music and singing by enclosing words in ♪
 * Using non-English words or characters will generally lead to that accent
