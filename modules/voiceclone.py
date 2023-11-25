@@ -58,7 +58,7 @@ class CloneQueueObject:
         @logger.catch()
         async def respond(self):
 
-            await self.channel.send(content="Here is your voice file, supply it to speakgen to  use it", file=discord.File(self.speaker_file, filename=f"{self.file_name}.npz"))
+            await self.channel.send(content="Here is your voice file, supply it to /speakgen to use it", file=discord.File(self.speaker_file, filename=f"{self.file_name}.npz"))
 
             voiceclonereply_logger = logger.bind(user=self.user.name)
             voiceclonereply_logger.success("VOICECLONE Replied")
