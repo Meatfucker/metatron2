@@ -44,7 +44,6 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * Can generate noises, emotions etc by enclosing word in []
 * Can generate music and singing by enclosing words in ♪
 * Using non-English words or characters will generally lead to that accent
-* Can create your own custom voice files and use them. See https://github.com/C0untFloyd/bark-gui for a project which can make metatron2 compatible voices.
 * Generated sounds can be saved and uploaded in either mp3 or wav
 
 
