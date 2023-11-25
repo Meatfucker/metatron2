@@ -62,8 +62,6 @@ class CloneQueueObject:
         @logger.catch()
         async def check_audio_format(self):
             self.input_audio.seek(0)
-            file_size = self.input_audio.getbuffer().nbytes
-            logger.debug(file_size)
             input_data = self.input_audio.read(10)  # Read the first 10 bytes for analysis
 
             if input_data.startswith(b'RIFF'):
