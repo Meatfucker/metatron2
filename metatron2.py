@@ -322,7 +322,8 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
 
 @client.slash_command_tree.command(description="Bark audio generation")
 @app_commands.describe(prompt="The sentence or sounds to generate. use [] around words for noises or sound effects, use ♪ for music",
-                       voice_file="The voice to use for generation, if blank the baseline voice is used")
+                       voice_file="The voice to use for generation, if blank the baseline voice is used",
+                       user_voice_file="A .npz file generated with /voiceclone")
 @app_commands.choices(voice_file=client.speak_voice_choices)
 @app_commands.rename(prompt='prompt', voice_file='voice')
 async def speakgen(interaction: discord.Interaction, prompt: str, voice_file: Optional[app_commands.Choice[str]] = None, user_voice_file: Optional[discord.Attachment] = None):
