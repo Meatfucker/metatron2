@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torchaudio
 import io
+import asyncio
 from loguru import logger
 from pydub import AudioSegment
 from encodec import EncodecModel
@@ -25,12 +26,15 @@ class CloneQueueObject:
             self.speaker_file = io.BytesIO()
             self.audio_type = None
 
+
         @logger.catch()
         async def clone_voice(self):
 
             logger.debug("Loading Hubert")
-            hubert_model = CustomHubert(HuBERTManager.make_sure_hubert_installed(), device="cpu")
-            quant_model = CustomTokenizer.load_from_checkpoint(HuBERTManager.make_sure_tokenizer_installed(model="quantifier_V1_hubert_base_ls960_23.pth", local_file="tokenizer_large.pth"), "cpu")
+            hubert_installed = await asyncio.to_thread(HuBERTManager.make_sure_hubert_installed)
+            hubert_model = CustomHubert(hubert_installed, device="cpu")
+            tokenizer_installed = await asyncio.to_thread(HuBERTManager.make_sure_tokenizer_installed, model="quantifier_V1_hubert_base_ls960_23.pth", local_file="tokenizer_large.pth")
+            quant_model = CustomTokenizer.load_from_checkpoint(tokenizer_installed, "cpu")
             encodec_model = EncodecModel.encodec_model_24khz()
             encodec_model.set_target_bandwidth(6.0)
             encodec_model.to("cpu")
@@ -44,7 +48,7 @@ class CloneQueueObject:
             wav = convert_audio(wav, sr, encodec_model.sample_rate, 1).unsqueeze(0)
             wav = wav.to("cpu")
             with torch.no_grad():
-                encoded_frames = encodec_model.encode(wav)
+                encoded_frames = await asyncio.to_thread(encodec_model.encode, wav)
             codes = torch.cat([encoded[0] for encoded in encoded_frames], dim=-1).squeeze()
             codes = codes.cpu()
             semantic_tokens = semantic_tokens.cpu()
