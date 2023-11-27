@@ -15,3 +15,5 @@ maxbatch=4
 maxres=512
 sdxlmaxbatch=1
 sdxlmaxres=1024
+enableimageapi=False
+imageapi=127.0.0.1:7860

@@ -8,6 +8,8 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * Stable Diffusion image generation
 * Stable Diffusion XL image generation
 * Bark audio generation and voice cloning.
+* Support for local generation or using APIs for generation.
+
 
 ![metatron2](assets/imagegenexample.png)
 ![metatron2](assets/imagegenexample2.png)
@@ -23,6 +25,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * Configurable banned word list and mandatory negative prompt options for moderation purposes.
 * Images can be saved and uploaded in either png or jpg
 * Supports toggleable per channel default generation settings
+* A1111 API support for remote instead of local generation.
 
 ![metatron2](/assets/wordgenexample.png)
 
@@ -112,6 +115,8 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | sdxlmaxbatch   | This maximum allowed SDXL batch size                                                                                | `sdxlbatchsize=1`                        |
 | sdxlmaxres     | The maximum allowed SDXL resolution                                                                                 | `sdxlmaxres=1024`                        |
 | enabledebug    | Turns on debug information.                                                                                         | `debug=True`                             |
+| enableimageapi | If this is set to True, will use an external A1111 API for image generation instead of local generation.            | `enableimageapi=True`                    |
+| imageapi       | The A1111 API endpoint IP.                                                                                          | `imageapi=127.0.0.1:7860`                |
 
 ## defaults/global.cfg
 

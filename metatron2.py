@@ -17,6 +17,7 @@ from modules.wordgen import WordQueueObject, load_llm
 from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list
 from modules.imagegen_xl import ImageXLQueueObject, load_sdxl_models_list, load_sdxl_loras_list, load_sdxl_refiners_list
 from modules.voiceclone import CloneQueueObject
+from modules.api import ApiImageQueueObject, api_load_sd_models, api_load_sd_loras
 from modules.settings import SETTINGS
 import warnings
 
@@ -77,15 +78,26 @@ class MetatronClient(discord.Client):
                 self.speak_voice_choices.append(app_commands.Choice(name=voice, value=voice))
 
         if SETTINGS["enablesd"][0] == "True":
-            sd_model_list = await load_models_list()  # get the list of available models to build the discord interface with
-            for model in sd_model_list:
-                self.sd_model_choices.append(app_commands.Choice(name=model, value=model))
-            sd_loras_list = await load_loras_list()  # get the list of available loras to build the interface with
-            for lora in sd_loras_list:
-                self.sd_loras_choices.append(app_commands.Choice(name=lora, value=lora))
-            sd_embeddings_list = await load_embeddings_list()  # get the list of available embeddings to build the discord interface with
-            for embedding in sd_embeddings_list:
-                self.sd_embedding_choices.append(app_commands.Choice(name=embedding, value=embedding))
+
+            if SETTINGS["enableimageapi"][0] == "True":
+                sd_model_list = await api_load_sd_models()  # get the list of available models to build the discord interface with
+                for model in sd_model_list:
+                    self.sd_model_choices.append(app_commands.Choice(name=model, value=model))
+                sd_loras_list = await api_load_sd_loras()  # get the list of available loras to build the interface with
+                for lora in sd_loras_list:
+                    self.sd_loras_choices.append(app_commands.Choice(name=lora, value=lora))
+
+            else:
+                sd_model_list = await load_models_list()  # get the list of available models to build the discord interface with
+                for model in sd_model_list:
+                    self.sd_model_choices.append(app_commands.Choice(name=model, value=model))
+                sd_loras_list = await load_loras_list()  # get the list of available loras to build the interface with
+                for lora in sd_loras_list:
+                    self.sd_loras_choices.append(app_commands.Choice(name=lora, value=lora))
+                sd_embeddings_list = await load_embeddings_list()  # get the list of available embeddings to build the discord interface with
+                for embedding in sd_embeddings_list:
+                    self.sd_embedding_choices.append(app_commands.Choice(name=embedding, value=embedding))
+            logger.debug(self.sd_model_choices)
 
         if SETTINGS["enablesdxl"][0] == "True":
             sdxl_model_list = await load_sdxl_models_list()  # get the list of available models to build the discord interface with
@@ -262,7 +274,10 @@ async def imagegen(interaction: discord.Interaction, prompt: str, negative_promp
         prompt = f"{prompt}<lora:{lora_choice.name}:1>"
     if embedding_choice is not None:
         prompt = f"{prompt}{embedding_choice.name}"
-    imagegen_request = ImageQueueObject("imagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, use_defaults)
+    if SETTINGS["enableimageapi"][0] == "True":
+        imagegen_request = ApiImageQueueObject("imagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, use_defaults)
+    else:
+        imagegen_request = ImageQueueObject("imagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, use_defaults)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
         client.generation_queue_concurrency_list[interaction.user.id] += 1
