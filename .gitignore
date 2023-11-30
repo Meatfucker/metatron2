@@ -19,6 +19,7 @@ outputs/*
 !outputs/outputsaveshere.txt
 defaults/*
 !defaults/global.cfg.example
+!defaults/wordapi.cfg.example
 .idea
 /models/hubert/hubert.pt
 /models/hubert/tokenizer_large.pth

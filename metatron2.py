@@ -17,7 +17,7 @@ from modules.wordgen import WordQueueObject, load_llm
 from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list
 from modules.imagegen_xl import ImageXLQueueObject, load_sdxl_models_list, load_sdxl_loras_list, load_sdxl_refiners_list
 from modules.voiceclone import CloneQueueObject
-from modules.api import ApiImageQueueObject, api_load_sd_models, api_load_sd_loras
+from modules.api import ApiImageQueueObject, ApiWordQueueObject, api_load_sd_models, api_load_sd_loras
 from modules.settings import SETTINGS
 import warnings
 
@@ -66,9 +66,11 @@ class MetatronClient(discord.Client):
 
     async def setup_hook(self):
         """This loads the various models before logging in to discord"""
+
         if SETTINGS["enableword"][0] == "True":
-            logger.info("Loading LLM")
-            self.llm_model, self.llm_tokenizer = await load_llm()  # load llm
+            if SETTINGS["enablewordapi"][0] != "True":
+                logger.info("Loading LLM")
+                self.llm_model, self.llm_tokenizer = await load_llm()  # load llm
 
         if SETTINGS["enablespeak"][0] == "True":
             logger.info("Loading Bark")
@@ -78,7 +80,6 @@ class MetatronClient(discord.Client):
                 self.speak_voice_choices.append(app_commands.Choice(name=voice, value=voice))
 
         if SETTINGS["enablesd"][0] == "True":
-
             if SETTINGS["enableimageapi"][0] == "True":
                 sd_model_list = await api_load_sd_models()  # get the list of available models to build the discord interface with
                 for model in sd_model_list:
@@ -124,7 +125,10 @@ class MetatronClient(discord.Client):
             prompt = re.sub(r'<[^>]+>', '', message.content).lstrip()  # this removes the user tag
             if await self.is_room_in_queue(message.author.id):
                 self.generation_queue_concurrency_list[message.author.id] += 1
-                wordgen_request = WordQueueObject("wordgen", self, message.author, message.channel, prompt)
+                if SETTINGS["enablewordapi"][0] == "True":
+                    wordgen_request = ApiWordQueueObject("wordgen", self, message.author, message.channel, prompt)
+                else:
+                    wordgen_request = WordQueueObject("wordgen", self, message.author, message.channel, prompt)
                 await self.generation_queue.put(wordgen_request)
             else:
                 await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
@@ -310,7 +314,10 @@ async def summarize(interaction: discord.Interaction):
     if not await client.is_enabled_not_banned("enableword", interaction.user):
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
-    wordgen_request = WordQueueObject("wordgensummary", client, interaction.user, interaction.channel)
+    if SETTINGS["enablewordapi"][0] == "True":
+        wordgen_request = ApiWordQueueObject("wordgensummary", client, interaction.user, interaction.channel)
+    else:
+        wordgen_request = WordQueueObject("wordgensummary", client, interaction.user, interaction.channel)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Summarizing...")
         client.generation_queue_concurrency_list[interaction.user.id] += 1
@@ -326,7 +333,10 @@ async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt
     if not await client.is_enabled_not_banned("enableword", interaction.user):
         await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
         return
-    wordgen_request = WordQueueObject("wordgen", client, interaction.user, interaction.channel, prompt, negative_prompt)
+    if SETTINGS["enablewordapi"][0] == "True":
+        wordgen_request = ApiWordQueueObject("wordgen", client, interaction.user, interaction.channel, prompt, negative_prompt)
+    else:
+        wordgen_request = WordQueueObject("wordgen", client, interaction.user, interaction.channel, prompt, negative_prompt)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message(f'{interaction.user.name}: {prompt}')
         client.generation_queue_concurrency_list[interaction.user.id] += 1
@@ -361,8 +371,8 @@ async def speakgen(interaction: discord.Interaction, prompt: str, voice_file: Op
                 return
 
         except Exception as e:
-                await interaction.response.send_message("Supplied speaker file is not a voice.")
-                return
+            await interaction.response.send_message("Supplied speaker file is not a voice.")
+            return
     else:
         speakgen_request = VoiceQueueObject("speakgen", client, interaction.user, interaction.channel, prompt, voice_file)
     if await client.is_room_in_queue(interaction.user.id):
@@ -390,6 +400,7 @@ async def voiceclone(interaction: discord.Interaction, user_audio_file: discord.
         await client.generation_queue.put(voiceclone_request)
     else:
         await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
+
 
 async def quit_exit():
     # Perform cleanup tasks here if needed before exiting

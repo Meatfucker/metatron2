@@ -38,6 +38,7 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 * History message pairs can be deleted via button or entire user history reset.
 * One shot prompt injection supported via /impersonate
 * Configurable LLM system prompt and negative prompt
+* Oobabooga API support for remote instead of local generation.
 
 ![metatron2](/assets/speakgenexample.png)
 
@@ -117,6 +118,8 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | enabledebug    | Turns on debug information.                                                                                         | `debug=True`                             |
 | enableimageapi | If this is set to True, will use an external A1111 API for image generation instead of local generation.            | `enableimageapi=True`                    |
 | imageapi       | The A1111 API endpoint IP.                                                                                          | `imageapi=127.0.0.1:7860`                |
+| enablewordapi  | If this is set to True, will use an external Oobabooga API for LLM generation instead of local generation.          | `enablewordapi=True`                     |
+| wordapi        | The Oobabooga API endpoint IP.                                                                                      | `wordapi=127.0.0.1:7860`                 |
 
 ## defaults/global.cfg
 
@@ -140,4 +143,15 @@ global.cfg provides all of the generation defaults for the bot. Copy it and rena
 | sdxlwidth        | The default SDXL width                                                                                                                                 | `sdxlwidth=1024`                                                                                                                            |
 | sdxlheight       | The default SDXL height                                                                                                                                | `sdxlheight=1024`                                                                                                                           |
 | sdxlbatchsize    | The default SDXL batch size                                                                                                                            | `sdxlbatchsize=1`                                                                                                                           |
+
+## defaults/wordapi.cfg
+
+wordapi.cfg provides the values to supply to the Oobabooga API, see the Oobabooga docs and the simple example config for more info. The examples are not exhaustive and whats available will depend on your Oobabooga install. If you arent using the Oobabooga API you do not need to configure this.
+
+| OPTION         | DESCRIPTION                                                                                             | EXAMPLE               |
+|----------------|---------------------------------------------------------------------------------------------------------|-----------------------|
+| max_tokens     | The maximum amount of tokens to generate                                                                | `max_tokens=2048`     |
+| temperature    | The generation temperature                                                                              | `temperature=0.2`     |
+| early_stopping | Whether to stop at stop token                                                                           | `early_stopping=true` |
+| stop           | The stopping token, be warned you cannot currently use escapes due to limitation with my code, will fix | `stop=USER:`          |
 

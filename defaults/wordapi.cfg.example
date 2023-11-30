@@ -1,0 +1,6 @@
+max_tokens=2048
+temperature=0.2
+do_sample=true
+guidance_scale=2
+early_stopping=true
+stop=USER
