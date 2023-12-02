@@ -145,6 +145,7 @@ class WordQueueObject:
                     finally:
                         self.reroll = False
             del self.metatron.llm_chunks_messages[self.user.id]
+
         message_chunks = [self.llm_response[i:i + 1500] for i in range(0, len(self.llm_response), 1500)]  # Send and track the previously sent messages in case we have to delete them for reroll.
         if self.user.id not in self.metatron.llm_chunks_messages:
             self.metatron.llm_chunks_messages[self.user.id] = []
