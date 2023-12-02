@@ -109,7 +109,7 @@ class MetatronClient(discord.Client):
                 self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
 
         self.loop.create_task(client.process_queue())  # start queue
-       logger.info("Logging in...")
+        logger.info("Logging in...")
 
     async def on_ready(self):
         """Just prints the bots name to discord"""
