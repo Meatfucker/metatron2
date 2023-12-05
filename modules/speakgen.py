@@ -4,6 +4,7 @@ import io
 import asyncio
 import gc
 import re
+import time
 from datetime import datetime
 from loguru import logger
 from scipy.io.wavfile import write as write_wav
@@ -44,6 +45,7 @@ class VoiceQueueObject:
         self.user_voice_file = user_voice_file
         self.audio = None  # This holds the audio after generation
         self.sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.prompt)[:100]  # This contains a prompt thats safe to use as a filename
+        self.generation_time = None  # The generation time in seconds.
 
     async def generate(self):
         """Generates audio"""
@@ -51,7 +53,10 @@ class VoiceQueueObject:
         speakgen_logger.info("SPEAKGEN Generate started")
         if self.user_voice_file is not None:
             await self.user_voice_file.save("outputs/voice.npz")
+            start_time = time.time()
             audio_array = await asyncio.to_thread(generate_audio, self.prompt, "outputs/voice.npz", silent=True)
+            end_time = time.time()
+            self.generation_time = "{:.3f}".format(end_time - start_time)
             os.remove("outputs/voice.npz")
         else:
             if self.voice_file is not None:  # If there is a voice file, include in the generation call.
@@ -87,9 +92,9 @@ class VoiceQueueObject:
 
     async def respond(self):
         if SETTINGS["saveinmp3"][0] == "True":
-            await self.channel.send(content=f"Prompt:`{self.prompt}`", file=discord.File(self.audio, filename=f"{self.sanitized_prompt}.mp3"), view=Speakgenbuttons(self))
+            await self.channel.send(content=f"Prompt:`{self.prompt}` Time:`{self.generation_time} seconds`", file=discord.File(self.audio, filename=f"{self.sanitized_prompt}.mp3"), view=Speakgenbuttons(self))
         else:
-            await self.channel.send(content=f"Prompt:`{self.prompt}`", file=discord.File(self.audio, filename=f"{self.sanitized_prompt}.wav"), view=Speakgenbuttons(self))
+            await self.channel.send(content=f"Prompt:`{self.prompt}` Time:`{self.generation_time} seconds`", file=discord.File(self.audio, filename=f"{self.sanitized_prompt}.wav"), view=Speakgenbuttons(self))
         speakgenreply_logger = logger.bind(user=self.user.name, prompt=self.prompt)
         speakgenreply_logger.success("SPEAKGEN Replied")
 

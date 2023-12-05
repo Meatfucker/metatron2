@@ -99,6 +99,7 @@ class ApiImageQueueObject:
         self.sd_defaults = None  # This holds the global defauls
         self.channel_defaults = None  # This holds the channel defaults
         self.payload = {}
+        self.generation_time  # the generation time in seconds.
 
     async def generate(self):
         """this generates the request, tiles the images, and returns them as a single image"""
@@ -108,6 +109,7 @@ class ApiImageQueueObject:
 
         sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
         sd_generate_logger.info("IMAGEGEN Generate Started.")
+        start_time = time.time()
         async with aiohttp.ClientSession() as session:
             async with session.post(f'http://{SETTINGS["imageapi"][0]}/sdapi/v1/txt2img', json=self.payload) as response:
                 if response.status == 200:
@@ -115,7 +117,8 @@ class ApiImageQueueObject:
                     if "images" in data:  # Tile and compile images into a grid
                         image_list = [Image.open(io.BytesIO(base64.b64decode(i.split(",", 1)[0]))) for i in data['images']]
                         self.image = await make_image_grid(image_list)  # Turn returned images into a single image
-
+        end_time = time.time()
+        self.generation_time = "{:.3f}".format(end_time - start_time)
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
 
     async def build_payload(self):
@@ -198,9 +201,9 @@ class ApiImageQueueObject:
     async def respond(self):
         sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.processed_prompt)[:100]
         if SETTINGS["saveinjpg"][0] == "True":  # Save and upload in jpg if enabled, otherwise PNG
-            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` ", file=discord.File(self.image, filename=f"{sanitized_prompt}.jpg"), view=Imagegenbuttons(self))
+            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` Time:`{self.generation_time} seconds`", file=discord.File(self.image, filename=f"{sanitized_prompt}.jpg"), view=Imagegenbuttons(self))
         else:
-            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` ", file=discord.File(self.image, filename=f"{sanitized_prompt}.png"), view=Imagegenbuttons(self))
+            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` Time:`{self.generation_time} seconds`", file=discord.File(self.image, filename=f"{sanitized_prompt}.png"), view=Imagegenbuttons(self))
         imagegenreply_logger = logger.bind(user=self.user.name, prompt=self.prompt, negativeprompt=self.negative_prompt, model=self.model)
         imagegenreply_logger.success("IMAGEGEN Replied")
 
