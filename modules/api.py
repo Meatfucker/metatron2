@@ -9,6 +9,7 @@ import discord
 import aiohttp
 import re
 import io
+import time
 from PIL import Image
 import random
 from modules.settings import SETTINGS
