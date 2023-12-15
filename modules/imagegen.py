@@ -151,6 +151,7 @@ class ImageQueueObject:
 
         await self.enforce_defaults_and_limits()
         await self.load_request_or_default_model()
+        self.metatron.sd_pipeline.unload_lora_weights()
         await self.load_sd_lora()  # Check the prompt for loras and load them if needed.
         await self.load_ti()  # Check the prompt for TIs and load them if needed.
         inputs = await self.get_inputs()  # This creates the prompt embeds
