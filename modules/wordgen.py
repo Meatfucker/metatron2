@@ -2,14 +2,18 @@
 import asyncio
 import gc
 import io
+from io import BytesIO
 import json
 from loguru import logger
 import discord
 import torch
-from transformers import LlamaForCausalLM, LlamaTokenizer
+from transformers import pipeline, BitsAndBytesConfig
 from transformers.utils import logging as translogging
 from modules.settings import SETTINGS
 import warnings
+from PIL import Image
+import requests
+import re
 
 warnings.filterwarnings("ignore")
 translogging.disable_progress_bar()
@@ -18,23 +22,19 @@ translogging.set_verbosity_error()
 wordgen_user_history = {}  # This dict holds the histories for the users.
 
 
+@logger.catch()
 async def load_llm():
     """loads the llm"""
+    quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True)
     if SETTINGS["usebigllm"][0] == "True":
-        model_name = "liuhaotian/llava-v1.5-13b"
-        model = LlamaForCausalLM.from_pretrained(model_name, model_type="llama", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
+        model_name = "llava-hf/llava-1.5-13b-hf"
+        model = pipeline("image-to-text", model=model_name, model_kwargs={"quantization_config": quantization_config})
     else:
-        model_name = "liuhaotian/llava-v1.5-7b"
-        model = LlamaForCausalLM.from_pretrained(model_name, model_type="llama", load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True, device_map="auto")
-    #model = model.to_bettertransformer()  # Use bettertransformers for more speed - Disabled atm due to a conflict with hubert.
-    model.eval()
-    if SETTINGS["usebigllm"][0] == "True":
-        tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-13b")  # load tokenizer
-    else:
-        tokenizer = LlamaTokenizer.from_pretrained("liuhaotian/llava-v1.5-7b")  # load tokenizer
+        model_name = "llava-hf/llava-1.5-7b-hf"
+        model = pipeline("image-to-text", model=model_name, model_kwargs={"quantization_config": quantization_config})
     load_llm_logger = logger.bind(model=model_name)
     load_llm_logger.success("LLM Loaded.")
-    return model, tokenizer
+    return model
 
 
 async def get_defaults(idname):
@@ -60,66 +60,65 @@ async def get_defaults(idname):
 
 class WordQueueObject:
 
-    def __init__(self, action, metatron, user, channel, prompt=None, negative_prompt=None, llm_prompt=None, reroll=False):
+    def __init__(self, action, metatron, user, channel, prompt=None, image_url=None, llm_prompt=None, reroll=False):
         self.action = action  # This is the queue generation action
         self.metatron = metatron  # This is the discord client
         self.user = user  # This is the discord user variable, contains user.name and user.id
         self.channel = channel  # This is the discord channel variable/
         self.model = metatron.llm_model  # This holds the current model pipeline
-        self.tokenizer = metatron.llm_tokenizer  # This holds the current model tokenizer
         self.prompt = prompt  # This holds the users prompt
-        self.negative_prompt = negative_prompt  # This holds the users negative prompt
         self.llm_prompt = llm_prompt  # This holds the llm prompt for /impersonate
         self.llm_response = None  # This holds the resulting response from generate
         self.reroll = reroll  # If this is true, when it generates text itll delete the last q/a pair and replace it with the new one.
+        self.image_url = image_url
 
+    @logger.catch()
     async def generate(self):
         """function for generating responses with the llm"""
+        tempimage = Image.new('RGB', (336, 336), color='black')
+        if self.image_url:
+            image_url = self.image_url[0]  # Consider the first image URL found
+            response = requests.get(image_url)
+            if response.status_code == 200:
+                image_data = BytesIO(response.content)
+                new_image = Image.open(image_data)
+                tempimage = new_image
+                image_url_pattern = r'\bhttps?://\S+\.(?:png|jpg|jpeg|gif)\S*\b'  # Updated regex pattern for image URLs
+                self.prompt = re.sub(image_url_pattern, '', self.prompt)
         llm_defaults = await get_defaults('global')
         userhistory = await self.load_history()  # load the users past history to include in the prompt
         if self.reroll is True:
             await self.delete_last_history_pair()
             self.reroll = False
         if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
-            formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
+            formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:<image>{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
         else:
-            formatted_prompt = f'{userhistory}\nUSER:{self.prompt}\nASSISTANT:'
-        input_ids = self.tokenizer.encode(formatted_prompt, return_tensors="pt")  # turn prompt into tokens
-        input_ids = input_ids.to('cuda')  # send tokens to gpu
-        if self.negative_prompt is None:
-            negative_input_ids = self.tokenizer.encode(llm_defaults["wordnegprompt"][0], return_tensors="pt")  # turn negative prompt into tokens
-        else:
-            combined_negative_prompt = f'{llm_defaults["wordnegprompt"][0]} {self.negative_prompt}'
-            negative_input_ids = self.tokenizer.encode(combined_negative_prompt, return_tensors="pt")  # turn negative prompt into tokens
-        negative_input_ids = negative_input_ids.to('cuda')  # negative tokens to gpu
-        llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt, negative=self.negative_prompt)
+            formatted_prompt = f'{userhistory}\nUSER:<image>{self.prompt}\nASSISTANT:'
+        llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
         llm_generate_logger.info("WORDGEN Generate Started.")
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
             with torch.no_grad():
-                output = await asyncio.to_thread(self.model.generate, input_ids, max_length=2048, temperature=0.2, do_sample=True, guidance_scale=2, negative_prompt_ids=negative_input_ids)
-        generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)  # turn the returned tokens into string
+                output = await asyncio.to_thread(self.model, tempimage, prompt=formatted_prompt, generate_kwargs={"max_length": 2048, "temperature": 0.2, "do_sample": True, "guidance_scale": 2})
         llm_generate_logger.debug("WORDGEN Generate Completed")
-        response_index = generated_text.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
-        self.llm_response = generated_text[response_index + len("ASSISTANT:"):].strip()
+        response_index = output[0]["generated_text"].rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
+        self.llm_response = output[0]["generated_text"][response_index + len("ASSISTANT:"):].strip()
         await self.save_history()  # save the response to the users history
         gc.collect()
 
     async def summary(self):
         """function for generating and posting chat summary with the llm"""
+        tempimage = Image.new('RGB', (336, 336), color='black')
         channel_history = [message async for message in self.channel.history(limit=20)]
         compiled_messages = '\n'.join([f'{msg.author}: {msg.content}' for msg in channel_history])
-        formatted_prompt = f'You are an AI assistant that summarizes conversations.\n\nUSER: Here is the conversation to: {compiled_messages}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
-        input_ids = self.tokenizer.encode(formatted_prompt, return_tensors="pt")  # turn prompt into tokens
-        input_ids = input_ids.to('cuda')  # send tokens to gpu
+        formatted_prompt = f'You are an AI assistant that summarizes conversations.\n\nUSER:<image> Here is the conversation to: {compiled_messages}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
         llm_summary_logger = logger.bind(user=self.user.name)
         llm_summary_logger.info("WORDGEN Summary Started.")
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
             with torch.no_grad():
-                output = await asyncio.to_thread(self.model.generate, input_ids, max_length=2048, temperature=0.2, do_sample=True, guidance_scale=2)
-        generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)  # turn the returned tokens into string
+                output = await asyncio.to_thread(self.model, tempimage, prompt=formatted_prompt, generate_kwargs={"max_length": 2048, "temperature": 0.2, "do_sample": True, "guidance_scale": 2})
         llm_summary_logger.debug("WORDGEN Summary Completed")
-        response_index = generated_text.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
-        self.llm_response = generated_text[response_index + len("ASSISTANT:"):].strip()
+        response_index = output[0]["generated_text"].rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
+        self.llm_response = output[0]["generated_text"][response_index + len("ASSISTANT:"):].strip()
         message_chunks = [self.llm_response[i:i + 1500] for i in range(0, len(self.llm_response), 1500)]  # Post the message
         for message in message_chunks:
             await self.channel.send(message)
@@ -154,7 +153,7 @@ class WordQueueObject:
             self.metatron.llm_chunks_messages[self.user.id].append(chunk_message)
         new_message = await self.channel.send(view=Wordgenbuttons(self))  # send the message with the llm buttons
         self.metatron.llm_view_last_message[self.user.id] = new_message  # track the message id of the last set of llm buttons for each user
-        llm_reply_logger = logger.bind(user=self.user.name, prompt=self.prompt, negative=self.negative_prompt)
+        llm_reply_logger = logger.bind(user=self.user.name, prompt=self.prompt)
         llm_reply_logger.success("WORDGEN Reply")
 
     async def load_history(self):

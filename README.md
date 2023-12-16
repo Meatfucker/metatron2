@@ -1,10 +1,10 @@
 ![metatron2](/assets/metatronicon.png)
 # metatron2
-An easy to use discord.py based machine learning bot. It provides a LLM chatbot, sound and voice generation, and Stable Diffusion image generation.
+An easy to use discord.py based machine learning bot. It provides a Multimodal LLM chatbot, sound and voice generation, and Stable Diffusion image generation.
 
 ## FEATURES
 
-* LLM Chat
+* Multimodal LLM Chat
 * Stable Diffusion image generation
 * Stable Diffusion XL image generation
 * Bark audio generation and voice cloning.
@@ -29,9 +29,8 @@ An easy to use discord.py based machine learning bot. It provides a LLM chatbot,
 
 ![metatron2](/assets/wordgenexample.png)
 
-* Supports a 7B or 13B llm for configurable vram usage needs. See the usebigllm setting in settings.cfg.
-* Can be directly chatted with by tagging it or using /wordgen.
-* Negative prompts are also supported via /wordgen
+* Supports a 7B or 13B LLava LLM for configurable vram usage needs. See the usebigllm setting in settings.cfg.
+* Can be directly chatted with by tagging it
 * Can summarize chatroom messages with /summarize
 * Keeps a per user history so it can maintain multiple conversations at once.
 * Replies can be rerolled.

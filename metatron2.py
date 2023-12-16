@@ -44,7 +44,6 @@ class MetatronClient(discord.Client):
         self.speak_voice_choices = []  # The choices object for the discord speakgen ui
 
         self.llm_model = None
-        self.llm_tokenizer = None
         self.llm_user_history = {}
         self.llm_view_last_message = {}  # variable to track word view buttons so there is only one set
         self.llm_chunks_messages = {}  # variable to track the body of the last reply
@@ -70,7 +69,7 @@ class MetatronClient(discord.Client):
         if SETTINGS["enableword"][0] == "True":
             if SETTINGS["enablewordapi"][0] != "True":
                 logger.info("Loading LLM")
-                self.llm_model, self.llm_tokenizer = await load_llm()  # load llm
+                self.llm_model = await load_llm()  # load llm
 
         if SETTINGS["enablespeak"][0] == "True":
             logger.info("Loading Bark")
@@ -98,7 +97,6 @@ class MetatronClient(discord.Client):
                 sd_embeddings_list = await load_embeddings_list()  # get the list of available embeddings to build the discord interface with
                 for embedding in sd_embeddings_list:
                     self.sd_embedding_choices.append(app_commands.Choice(name=embedding, value=embedding))
-            logger.debug(self.sd_model_choices)
 
         if SETTINGS["enablesdxl"][0] == "True":
             sdxl_model_list = await load_sdxl_models_list()  # get the list of available models to build the discord interface with
@@ -117,18 +115,25 @@ class MetatronClient(discord.Client):
         ready_logger = logger.bind(user=client.user.name, userid=client.user.id)
         ready_logger.info("Login Successful")
 
+    @logger.catch()
     async def on_message(self, message):
         """This captures people talking to the bot in chat and responds."""
         if self.user.mentioned_in(message):
             if not await self.is_enabled_not_banned("enableword", message.author):
                 return
             prompt = re.sub(r'<[^>]+>', '', message.content).lstrip()  # this removes the user tag
+            image_urls = None
+            if message.attachments:
+                image_urls = [attachment.url for attachment in message.attachments]
+            else:
+                image_url_pattern = r'\bhttps?://\S+\.(?:png|jpg|jpeg|gif)\S*\b'  # Updated regex pattern for image URLs
+                image_urls = re.findall(image_url_pattern, prompt)
             if await self.is_room_in_queue(message.author.id):
                 self.generation_queue_concurrency_list[message.author.id] += 1
                 if SETTINGS["enablewordapi"][0] == "True":
                     wordgen_request = ApiWordQueueObject("wordgen", self, message.author, message.channel, prompt)
                 else:
-                    wordgen_request = WordQueueObject("wordgen", self, message.author, message.channel, prompt)
+                    wordgen_request = WordQueueObject("wordgen", self, message.author, message.channel, prompt, image_urls)
                 await self.generation_queue.put(wordgen_request)
             else:
                 await message.channel.send("Queue limit has been reached, please wait for your previous gens to finish")
@@ -152,8 +157,6 @@ class MetatronClient(discord.Client):
                             if await queue_request.check_audio_duration():
                                 await queue_request.clone_voice()
                                 await queue_request.respond()
-
-
 
                 if SETTINGS["enableword"][0] == "True":
 
@@ -320,25 +323,6 @@ async def summarize(interaction: discord.Interaction):
         wordgen_request = WordQueueObject("wordgensummary", client, interaction.user, interaction.channel)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Summarizing...")
-        client.generation_queue_concurrency_list[interaction.user.id] += 1
-        await client.generation_queue.put(wordgen_request)
-    else:
-        await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish", ephemeral=True, delete_after=5)
-
-
-@client.slash_command_tree.command(description="LLM generation with optional negative prompts.")
-@app_commands.describe(prompt="Your prompt", negative_prompt="Your negative prompt")
-async def wordgen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str] = ""):
-    """This is the slash command for wordgen"""
-    if not await client.is_enabled_not_banned("enableword", interaction.user):
-        await interaction.response.send_message("LLM disabled or user banned", ephemeral=True, delete_after=5)
-        return
-    if SETTINGS["enablewordapi"][0] == "True":
-        wordgen_request = ApiWordQueueObject("wordgen", client, interaction.user, interaction.channel, prompt, negative_prompt)
-    else:
-        wordgen_request = WordQueueObject("wordgen", client, interaction.user, interaction.channel, prompt, negative_prompt)
-    if await client.is_room_in_queue(interaction.user.id):
-        await interaction.response.send_message(f'{interaction.user.name}: {prompt}')
         client.generation_queue_concurrency_list[interaction.user.id] += 1
         await client.generation_queue.put(wordgen_request)
     else:
