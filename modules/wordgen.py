@@ -106,7 +106,7 @@ class WordQueueObject:
                     inputs = self.multimodal_tokenizer(formatted_prompt, tempimage, return_tensors='pt').to("cuda")
                     llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
                     llm_generate_logger.info("WORDGEN Generate Started.")
-                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=200, do_sample=False)
+                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=2000, do_sample=True)
                     llm_generate_logger.debug("WORDGEN Generate Completed")
                     result = self.multimodal_tokenizer.decode(output[0], skip_special_tokens=True)
                 else:
@@ -117,7 +117,7 @@ class WordQueueObject:
                     inputs = self.tokenizer(formatted_prompt, return_tensors='pt').to("cuda")
                     llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
                     llm_generate_logger.info("WORDGEN Generate Started.")
-                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=200, do_sample=False)
+                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=2000, do_sample=True)
                     llm_generate_logger.debug("WORDGEN Generate Completed")
                     result = self.tokenizer.decode(output[0], skip_special_tokens=True)
 
