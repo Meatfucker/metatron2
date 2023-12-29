@@ -7,7 +7,7 @@ import json
 from loguru import logger
 import discord
 import torch
-from transformers import pipeline, BitsAndBytesConfig
+from transformers import AutoProcessor, LlavaForConditionalGeneration, LlamaTokenizerFast
 from transformers.utils import logging as translogging
 from modules.settings import SETTINGS
 import warnings
@@ -25,16 +25,19 @@ wordgen_user_history = {}  # This dict holds the histories for the users.
 @logger.catch()
 async def load_llm():
     """loads the llm"""
-    quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, low_cpu_mem_usage=True)
     if SETTINGS["usebigllm"][0] == "True":
         model_name = "llava-hf/llava-1.5-13b-hf"
-        model = pipeline("image-to-text", model=model_name, model_kwargs={"quantization_config": quantization_config})
+        model = LlavaForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
+        tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
+        multimodal_tokenizer = AutoProcessor.from_pretrained(model_name)
     else:
         model_name = "llava-hf/llava-1.5-7b-hf"
-        model = pipeline("image-to-text", model=model_name, model_kwargs={"quantization_config": quantization_config})
+        model = LlavaForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
+        tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
+        multimodal_tokenizer = AutoProcessor.from_pretrained(model_name)
     load_llm_logger = logger.bind(model=model_name)
     load_llm_logger.success("LLM Loaded.")
-    return model
+    return model, tokenizer, multimodal_tokenizer
 
 
 async def get_defaults(idname):
@@ -66,6 +69,8 @@ class WordQueueObject:
         self.user = user  # This is the discord user variable, contains user.name and user.id
         self.channel = channel  # This is the discord channel variable/
         self.model = metatron.llm_model  # This holds the current model pipeline
+        self.tokenizer = metatron.llm_tokenizer
+        self.multimodal_tokenizer = metatron.llm_multimodal_tokenizer
         self.prompt = prompt  # This holds the users prompt
         self.llm_prompt = llm_prompt  # This holds the llm prompt for /impersonate
         self.llm_response = None  # This holds the resulting response from generate
@@ -75,7 +80,12 @@ class WordQueueObject:
     @logger.catch()
     async def generate(self):
         """function for generating responses with the llm"""
-        tempimage = Image.new('RGB', (336, 336), color='black')
+        llm_defaults = await get_defaults('global')
+        userhistory = await self.load_history()  # load the users past history to include in the prompt
+        tempimage = None
+        if self.reroll is True:
+            await self.delete_last_history_pair()
+            self.reroll = False
         if self.image_url:
             image_url = self.image_url[0]  # Consider the first image URL found
             response = requests.get(image_url)
@@ -85,23 +95,34 @@ class WordQueueObject:
                 tempimage = new_image
                 image_url_pattern = r'\bhttps?://\S+\.(?:png|jpg|jpeg|gif)\S*\b'  # Updated regex pattern for image URLs
                 self.prompt = re.sub(image_url_pattern, '', self.prompt)
-        llm_defaults = await get_defaults('global')
-        userhistory = await self.load_history()  # load the users past history to include in the prompt
-        if self.reroll is True:
-            await self.delete_last_history_pair()
-            self.reroll = False
-        if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
-            formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:<image>{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
-        else:
-            formatted_prompt = f'{userhistory}\nUSER:<image>{self.prompt}\nASSISTANT:'
-        llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
-        llm_generate_logger.info("WORDGEN Generate Started.")
+
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
             with torch.no_grad():
-                output = await asyncio.to_thread(self.model, tempimage, prompt=formatted_prompt, generate_kwargs={"max_length": 2048, "temperature": 0.2, "do_sample": True, "guidance_scale": 2})
-        llm_generate_logger.debug("WORDGEN Generate Completed")
-        response_index = output[0]["generated_text"].rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
-        self.llm_response = output[0]["generated_text"][response_index + len("ASSISTANT:"):].strip()
+                if tempimage:
+                    if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
+                        formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:<image>{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
+                    else:
+                        formatted_prompt = f'{userhistory}\nUSER:<image>{self.prompt}\nASSISTANT:'
+                    inputs = self.multimodal_tokenizer(formatted_prompt, tempimage, return_tensors='pt').to("cuda")
+                    llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
+                    llm_generate_logger.info("WORDGEN Generate Started.")
+                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=200, do_sample=False)
+                    llm_generate_logger.debug("WORDGEN Generate Completed")
+                    result = self.multimodal_tokenizer.decode(output[0], skip_special_tokens=True)
+                else:
+                    if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
+                        formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
+                    else:
+                        formatted_prompt = f'{userhistory}\nUSER:{self.prompt}\nASSISTANT:'
+                    inputs = self.tokenizer(formatted_prompt, return_tensors='pt').to("cuda")
+                    llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
+                    llm_generate_logger.info("WORDGEN Generate Started.")
+                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=200, do_sample=False)
+                    llm_generate_logger.debug("WORDGEN Generate Completed")
+                    result = self.tokenizer.decode(output[0], skip_special_tokens=True)
+
+        response_index = result.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
+        self.llm_response = result[response_index + len("ASSISTANT:"):].strip()
         await self.save_history()  # save the response to the users history
         gc.collect()
 
