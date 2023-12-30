@@ -201,6 +201,7 @@ class MetatronClient(discord.Client):
                         await queue_request.respond()
 
             except Exception as e:
+                self.generation_queue_concurrency_list[queue_request.user.id] -= 1
                 logger.error(f'EXCEPTION: {e}')
             finally:
                 self.generation_queue_concurrency_list[queue_request.user.id] -= 1  # Remove one from the users queue limit
