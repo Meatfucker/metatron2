@@ -7,6 +7,7 @@ import re
 import random
 import gc
 import time
+import json
 from datetime import datetime
 
 import diffusers.utils.logging
@@ -56,6 +57,11 @@ async def load_embeddings_list():
                 embeddings.append(token_name)
     return embeddings
 
+async def load_styles_list():
+    with open("defaults/styles.json", 'r') as file:
+            data = json.load(file)
+            styles = [item['name'] for item in data if 'name' in item]
+    return styles
 
 async def load_sd(model=None):
     """Load a sd model, returning the pipeline object and the compel processor object for the pipeline"""
@@ -124,13 +130,14 @@ async def get_defaults(idname):
 
 
 class ImageQueueObject:
-    def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
+    def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, style=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
         self.action = action  # This is the queue action to do
         self.metatron = metatron  # This is the discord client
         self.user = user  # The discord user variable, contains .name and .id
         self.channel = channel  # The discord channel variable, has a bunch of built in functions like sending messages
         self.prompt = prompt  # The users prompt
         self.negative_prompt = negative_prompt  # The users negative prompt
+        self.style = style
         self.model = model  # The requested model
         self.batch_size = batch_size  # The batch size
         self.seed = seed  # The generation seed
@@ -154,6 +161,7 @@ class ImageQueueObject:
         self.metatron.sd_pipeline.unload_lora_weights()
         await self.load_sd_lora()  # Check the prompt for loras and load them if needed.
         await self.load_ti()  # Check the prompt for TIs and load them if needed.
+        await self.load_style()
         inputs = await self.get_inputs()  # This creates the prompt embeds
         self.metatron.sd_pipeline.set_progress_bar_config(disable=True)  # This disables the annoying progress bar.
         sd_generate_logger = logger.bind(prompt=self.prompt, negative_prompt=self.negative_prompt, model=self.model)
@@ -166,6 +174,17 @@ class ImageQueueObject:
             self.metatron.sd_pipeline.unload_lora_weights()  # Unload the loras so they dont effect future gens if they dont change models.
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
         self.image = await make_image_grid(images)  # Turn returned images into a single image
+
+    async def load_style(self):
+        if self.style is not None:
+            with open("defaults/styles.json", 'r') as file:
+                data = json.load(file)
+                for item in data:
+                    if 'name' in item and item['name'] == self.style:
+                        style_prompt = item.get('prompt')
+                        style_negative_prompt = item.get('negative_prompt')
+                        self.processed_prompt = f'{self.processed_prompt} {style_prompt}'
+                        self.processed_negative_prompt = f'{self.processed_negative_prompt} {style_negative_prompt}'
 
     async def load_request_or_default_model(self):
         if self.model is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor

@@ -1,0 +1,122 @@
+[
+    {
+        "name": "sai-anime",
+        "prompt": "anime artwork. anime style, key visual, vibrant, studio anime, highly detailed",
+        "negative_prompt": "photo, deformed, black and white, realism, disfigured, low contrast"
+    },
+    {
+        "name": "sai-comic book",
+        "prompt": "comic. graphic illustration, comic art, graphic novel art, vibrant, highly detailed",
+        "negative_prompt": "photograph, deformed, glitch, noisy, realistic, stock photo"
+    },
+    {
+        "name": "sai-craft clay",
+        "prompt": "play-doh style. sculpture, clay art, centered composition, Claymation",
+        "negative_prompt": "sloppy, messy, grainy, highly detailed, ultra textured, photo"
+    },
+    {
+        "name": "sai-fantasy art",
+        "prompt": "ethereal fantasy concept art of . magnificent, celestial, ethereal, painterly, epic, majestic, magical, fantasy art, cover art, dreamy",
+        "negative_prompt": "photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, sloppy, duplicate, mutated, black and white"
+    },
+    {
+        "name": "sai-isometric",
+        "prompt": "isometric style. vibrant, beautiful, crisp, detailed, ultra detailed, intricate",
+        "negative_prompt": "deformed, mutated, ugly, disfigured, blur, blurry, noise, noisy, realistic, photographic"
+    },
+    {
+        "name": "sai-pixel art",
+        "prompt": "pixel-art. low-res, blocky, pixel art style, 8-bit graphics",
+        "negative_prompt": "sloppy, messy, blurry, noisy, highly detailed, ultra textured, photo, realistic"
+    },
+    {
+        "name": "artstyle-abstract",
+        "prompt": "abstract style. non-representational, colors and shapes, expression of feelings, imaginative, highly detailed",
+        "negative_prompt": "realistic, photographic, figurative, concrete"
+    },
+    {
+        "name": "artstyle-art deco",
+        "prompt": "art deco style. geometric shapes, bold colors, luxurious, elegant, decorative, symmetrical, ornate, detailed",
+        "negative_prompt": "ugly, deformed, noisy, blurry, low contrast, realism, photorealistic, modernist, minimalist"
+    },
+    {
+        "name": "artstyle-constructivist",
+        "prompt": "constructivist style. geometric shapes, bold colors, dynamic composition, propaganda art style",
+        "negative_prompt": "realistic, photorealistic, low contrast, plain, simple, abstract expressionism"
+    },
+    {
+        "name": "artstyle-graffiti",
+        "prompt": "graffiti style. street art, vibrant, urban, detailed, tag, mural",
+        "negative_prompt": "ugly, deformed, noisy, blurry, low contrast, realism, photorealistic"
+    },
+    {
+        "name": "artstyle-pop art",
+        "prompt": "pop Art style. bright colors, bold outlines, popular culture themes, ironic or kitsch",
+        "negative_prompt": "ugly, deformed, noisy, blurry, low contrast, realism, photorealistic, minimalist"
+    },
+    {
+        "name": "artstyle-psychedelic",
+        "prompt": "psychedelic style. vibrant colors, swirling patterns, abstract forms, surreal, trippy",
+        "negative_prompt": "monochrome, black and white, low contrast, realistic, photorealistic, plain, simple"
+    },
+    {
+        "name": "artstyle-steampunk",
+        "prompt": "steampunk style. antique, mechanical, brass and copper tones, gears, intricate, detailed",
+        "negative_prompt": "deformed, glitch, noisy, low contrast, anime, photorealistic"
+    },
+    {
+        "name": "artstyle-watercolor",
+        "prompt": "watercolor painting. vibrant, beautiful, painterly, detailed, textural, artistic",
+        "negative_prompt": "anime, photorealistic, 35mm film, deformed, glitch, low contrast, noisy"
+    },
+    {
+        "name": "futuristic-biomechanical",
+        "prompt": "biomechanical style. blend of organic and mechanical elements, futuristic, cybernetic, detailed, intricate",
+        "negative_prompt": "natural, rustic, primitive, organic, simplistic"
+    },
+    {
+        "name": "futuristic-retro futurism",
+        "prompt": "retro-futuristic. vintage sci-fi, 50s and 60s style, atomic age, vibrant, highly detailed",
+        "negative_prompt": "contemporary, realistic, rustic, primitive"
+    },
+    {
+        "name": "game-gta",
+        "prompt": "GTA-style artwork. satirical, exaggerated, pop art style, vibrant colors, iconic characters, action-packed",
+        "negative_prompt": "realistic, black and white, low contrast, impressionist, cubist, noisy, blurry, deformed"
+    },
+    {
+        "name": "game-minecraft",
+        "prompt": "Minecraft style. blocky, pixelated, vibrant colors, recognizable characters and objects, game assets",
+        "negative_prompt": "smooth, realistic, detailed, photorealistic, noise, blurry, deformed"
+    },
+    {
+        "name": "game-retro arcade",
+        "prompt": "retro arcade style. 8-bit, pixelated, vibrant, classic video game, old school gaming, reminiscent of 80s and 90s arcade games",
+        "negative_prompt": "modern, ultra-high resolution, photorealistic, 3D"
+    },
+    {
+        "name": "misc-disco",
+        "prompt": "disco-themed. vibrant, groovy, retro 70s style, shiny disco balls, neon lights, dance floor, highly detailed",
+        "negative_prompt": "minimalist, rustic, monochrome, contemporary, simplistic"
+    },
+    {
+        "name": "misc-grunge",
+        "prompt": "grunge style. textured, distressed, vintage, edgy, punk rock vibe, dirty, noisy",
+        "negative_prompt": "smooth, clean, minimalist, sleek, modern, photorealistic"
+    },
+    {
+        "name": "misc-lovecraftian",
+        "prompt": "lovecraftian horror. eldritch, cosmic horror, unknown, mysterious, surreal, highly detailed",
+        "negative_prompt": "light-hearted, mundane, familiar, simplistic, realistic"
+    },
+    {
+        "name": "misc-monochrome",
+        "prompt": "monochrome. black and white, contrast, tone, texture, detailed",
+        "negative_prompt": "colorful, vibrant, noisy, blurry, deformed"
+    },
+    {
+        "name": "misc-stained glass",
+        "prompt": "stained glass style. vibrant, beautiful, translucent, intricate, detailed",
+        "negative_prompt": "ugly, deformed, noisy, blurry, low contrast, realism, photorealistic"
+    }
+]

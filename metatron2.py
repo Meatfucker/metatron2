@@ -14,7 +14,7 @@ from typing import Optional
 import numpy as np
 from modules.speakgen import VoiceQueueObject, load_bark, load_voices
 from modules.wordgen import WordQueueObject, load_llm
-from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list
+from modules.imagegen import ImageQueueObject, load_models_list, load_embeddings_list, load_loras_list, load_styles_list
 from modules.imagegen_xl import ImageXLQueueObject, load_sdxl_models_list, load_sdxl_loras_list, load_sdxl_refiners_list
 from modules.voiceclone import CloneQueueObject
 from modules.api import ApiImageQueueObject, ApiWordQueueObject, api_load_sd_models, api_load_sd_loras
@@ -57,6 +57,7 @@ class MetatronClient(discord.Client):
         self.sd_loaded_embeddings = []  # The list of currently loaded image embeddings
         self.sd_embedding_choices = []  # The choices object for the discord imagegen embeddings ui
         self.sd_loras_choices = []  # the choices object for the discord imagegen loras ui
+        self.sd_style_choices = []
 
         self.sd_xl_pipeline = None
         self.sd_xl_compel_processor = None
@@ -64,6 +65,7 @@ class MetatronClient(discord.Client):
         self.sd_xl_loras_choices = []
         self.sd_xl_loaded_model = None
         self.sd_xl_loaded_refiner = None
+
 
     async def setup_hook(self):
         """This loads the various models before logging in to discord"""
@@ -99,6 +101,10 @@ class MetatronClient(discord.Client):
                 sd_embeddings_list = await load_embeddings_list()  # get the list of available embeddings to build the discord interface with
                 for embedding in sd_embeddings_list:
                     self.sd_embedding_choices.append(app_commands.Choice(name=embedding, value=embedding))
+                sd_styles_list = await load_styles_list()
+                for style in sd_styles_list:
+                    self.sd_style_choices.append(app_commands.Choice(name=style, value=style))
+
 
         if SETTINGS["enablesdxl"][0] == "True":
             sdxl_model_list = await load_sdxl_models_list()  # get the list of available models to build the discord interface with
@@ -107,6 +113,7 @@ class MetatronClient(discord.Client):
             sd_xl_loras_list = await load_sdxl_loras_list()  # get the list of available loras to build the interface with
             for lora in sd_xl_loras_list:
                 self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
+
 
         self.loop.create_task(client.process_queue())  # start queue
         logger.info("Logging in...")
@@ -239,8 +246,9 @@ client = MetatronClient(intents=discord.Intents.all())  # client intents
 @app_commands.choices(model_choice=client.sd_xl_model_choices)
 @app_commands.choices(lora_choice=client.sd_xl_loras_choices)
 async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: Optional[str], negative_prompt: Optional[str], negative_prompt_2: Optional[str],
-                      model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None,
-                      seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+                      model_choice: Optional[app_commands.Choice[str]] = None,
+                      lora_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None,
+                      steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enablesdxl", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
@@ -251,6 +259,7 @@ async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: O
         model_selection = model_choice.name
     if lora_choice is not None:
         prompt = f"{prompt}<lora:{lora_choice.name}:1>"
+
 
     xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, prompt_2, negative_prompt, negative_prompt_2, model_selection, batch_size, seed, steps, width, height, use_defaults)
     if await client.is_room_in_queue(interaction.user.id):
@@ -269,9 +278,11 @@ async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: O
 @app_commands.choices(model_choice=client.sd_model_choices)
 @app_commands.choices(embedding_choice=client.sd_embedding_choices)
 @app_commands.choices(lora_choice=client.sd_loras_choices)
-async def imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], model_choice: Optional[app_commands.Choice[str]] = None,
-                   lora_choice: Optional[app_commands.Choice[str]] = None, embedding_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None,
-                   seed: Optional[int] = None, steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
+@app_commands.choices(style_choice=client.sd_style_choices)
+async def imagegen(interaction: discord.Interaction, prompt: str, negative_prompt: Optional[str], style_choice: Optional[app_commands.Choice[str]] = None,
+                   model_choice: Optional[app_commands.Choice[str]] = None, lora_choice: Optional[app_commands.Choice[str]] = None,
+                   embedding_choice: Optional[app_commands.Choice[str]] = None, batch_size: Optional[int] = None, seed: Optional[int] = None,
+                   steps: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None, use_defaults: bool = True):
     """This is the slash command for imagegen."""
     if not await client.is_enabled_not_banned("enablesd", interaction.user):
         await interaction.response.send_message("SD disabled or user banned", ephemeral=True, delete_after=5)
@@ -280,6 +291,10 @@ async def imagegen(interaction: discord.Interaction, prompt: str, negative_promp
         model_selection = None
     else:
         model_selection = model_choice.name
+    if style_choice is None:
+        style_selection = None
+    else:
+        style_selection = style_choice.name
     if lora_choice is not None:
         prompt = f"{prompt}<lora:{lora_choice.name}:1>"
     if embedding_choice is not None:
@@ -287,7 +302,7 @@ async def imagegen(interaction: discord.Interaction, prompt: str, negative_promp
     if SETTINGS["enableimageapi"][0] == "True":
         imagegen_request = ApiImageQueueObject("imagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, use_defaults)
     else:
-        imagegen_request = ImageQueueObject("imagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, model_selection, batch_size, seed, steps, width, height, use_defaults)
+        imagegen_request = ImageQueueObject("imagegen", client, interaction.user, interaction.channel, prompt, negative_prompt, style_selection, model_selection, batch_size, seed, steps, width, height, use_defaults)
     if await client.is_room_in_queue(interaction.user.id):
         await interaction.response.send_message("Generating Image...", ephemeral=True, delete_after=5)
         client.generation_queue_concurrency_list[interaction.user.id] += 1
