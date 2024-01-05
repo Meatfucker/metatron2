@@ -131,9 +131,7 @@ class WordQueueObject:
                     settings.top_p = 0.37
                     settings.top_k = 100
                     settings.token_repetition_penalty = 1.18
-                    #settings.disallow_tokens(self.metatron.llm_tokenizer, [self.metatron.llm_tokenizer.eos_token_id])
-                    #generator.warmup()
-                    result = generator.generate_simple(formatted_prompt, settings, 2000)
+                    result = await asyncio.to_thread(generator.generate_simple,formatted_prompt, settings, 2000)
 
                     llm_generate_logger.debug("WORDGEN Generate Completed")
 
