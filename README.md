@@ -29,7 +29,7 @@ An easy to use discord.py based machine learning bot. It provides a Multimodal L
 
 ![metatron2](/assets/wordgenexample.png)
 
-* Supports a 7B or 13B LLava LLM for configurable vram usage needs. See the usebigllm setting in settings.cfg.
+* Uses an uncensored Solar-10B for general llm use, and a LlaVa-7b for multimodal queries.
 * Can be directly chatted with by tagging it
 * Can summarize chatroom messages with /summarize
 * Keeps a per user history so it can maintain multiple conversations at once.
@@ -103,7 +103,6 @@ settings.cfg provides all of the settings for the bot. If the example file has m
 | enablespeak    | If set to anything besides True, Voice generation will be disabled                                                  | `enablespeak=True`                       |
 | enablesd       | If set to anything besides True, SD image generation will be disabled.                                              | `enableimage=True`                       |
 | enablesdxl     | If set to anything besides True, SDXL image generation will be disabled.                                            | `enablesdxl=True`                        |                                            
-| usebigllm      | If set to True, will use a 13B LLM, otherwise, use a 7B LLM                                                         | `usebigllm=True`                         |
 | saveoutputs    | If set to True, will save generated images                                                                          | `saveoutputs=True`                       |
 | savepath       | The path where you want the images saved                                                                            | `savepath=outputs`                       |
 | saveinjpg      | If set to True will save and upload in jpeg instead of PNG, saving on space and bandwidth at the expense of quality | `saveinjpg=True`                         |

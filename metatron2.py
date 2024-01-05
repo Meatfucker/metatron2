@@ -45,7 +45,6 @@ class MetatronClient(discord.Client):
 
         self.llm_model = None
         self.llm_tokenizer = None
-        self.llm_multimodal_tokenizer = None
         self.llm_user_history = {}
         self.llm_view_last_message = {}  # variable to track word view buttons so there is only one set
         self.llm_chunks_messages = {}  # variable to track the body of the last reply
@@ -73,7 +72,7 @@ class MetatronClient(discord.Client):
         if SETTINGS["enableword"][0] == "True":
             if SETTINGS["enablewordapi"][0] != "True":
                 logger.info("Loading LLM")
-                self.llm_model, self.llm_tokenizer, self.llm_multimodal_tokenizer = await load_llm()  # load llm
+                self.llm_model, self.llm_tokenizer = await load_llm()  # load llm
 
         if SETTINGS["enablespeak"][0] == "True":
             logger.info("Loading Bark")

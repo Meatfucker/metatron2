@@ -3,7 +3,6 @@ enableword=True
 enablespeak=True
 enablesd=True
 enablesdxl=True
-usebigllm=True
 saveoutputs=True
 savepath=outputs
 saveinjpg=True

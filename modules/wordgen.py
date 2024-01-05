@@ -7,7 +7,7 @@ import json
 from loguru import logger
 import discord
 import torch
-from transformers import AutoProcessor, LlavaForConditionalGeneration, LlamaTokenizerFast
+from transformers import AutoProcessor, LlavaForConditionalGeneration, LlamaTokenizerFast, LlamaForCausalLM
 from transformers.utils import logging as translogging
 from modules.settings import SETTINGS
 import warnings
@@ -25,19 +25,12 @@ wordgen_user_history = {}  # This dict holds the histories for the users.
 @logger.catch()
 async def load_llm():
     """loads the llm"""
-    if SETTINGS["usebigllm"][0] == "True":
-        model_name = "llava-hf/llava-1.5-13b-hf"
-        model = LlavaForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
-        tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
-        multimodal_tokenizer = AutoProcessor.from_pretrained(model_name)
-    else:
-        model_name = "llava-hf/llava-1.5-7b-hf"
-        model = LlavaForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
-        tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
-        multimodal_tokenizer = AutoProcessor.from_pretrained(model_name)
+    model_name = "w4r10ck/SOLAR-10.7B-Instruct-v1.0-uncensored"
+    model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
+    tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
     load_llm_logger = logger.bind(model=model_name)
     load_llm_logger.success("LLM Loaded.")
-    return model, tokenizer, multimodal_tokenizer
+    return model, tokenizer
 
 
 async def get_defaults(idname):
@@ -70,7 +63,6 @@ class WordQueueObject:
         self.channel = channel  # This is the discord channel variable/
         self.model = metatron.llm_model  # This holds the current model pipeline
         self.tokenizer = metatron.llm_tokenizer
-        self.multimodal_tokenizer = metatron.llm_multimodal_tokenizer
         self.prompt = prompt  # This holds the users prompt
         self.llm_prompt = llm_prompt  # This holds the llm prompt for /impersonate
         self.llm_response = None  # This holds the resulting response from generate
@@ -99,16 +91,22 @@ class WordQueueObject:
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):  # enable flash attention for faster inference
             with torch.no_grad():
                 if tempimage:
+                    multimodal_name = "llava-hf/llava-1.5-7b-hf"
+                    multimodal_model = LlavaForConditionalGeneration.from_pretrained(multimodal_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
+                    multimodal_tokenizer = AutoProcessor.from_pretrained(multimodal_name)
                     if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
                         formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:<image>{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
                     else:
                         formatted_prompt = f'{userhistory}\nUSER:<image>{self.prompt}\nASSISTANT:'
-                    inputs = self.multimodal_tokenizer(formatted_prompt, tempimage, return_tensors='pt').to("cuda")
+                    inputs = multimodal_tokenizer(formatted_prompt, tempimage, return_tensors='pt').to("cuda")
                     llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
                     llm_generate_logger.info("WORDGEN Generate Started.")
-                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=2000, do_sample=True)
+                    output = await asyncio.to_thread(multimodal_model.generate, **inputs, max_new_tokens=2000, do_sample=True)
                     llm_generate_logger.debug("WORDGEN Generate Completed")
-                    result = self.multimodal_tokenizer.decode(output[0], skip_special_tokens=True)
+                    result = multimodal_tokenizer.decode(output[0], skip_special_tokens=True)
+                    multimodal_model = None
+                    multimodal_tokenizer = None
+
                 else:
                     if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
                         formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
