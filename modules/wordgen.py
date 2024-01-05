@@ -25,8 +25,8 @@ wordgen_user_history = {}  # This dict holds the histories for the users.
 @logger.catch()
 async def load_llm():
     """loads the llm"""
-    model_name = "w4r10ck/SOLAR-10.7B-Instruct-v1.0-uncensored"
-    model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, low_cpu_mem_usage=True, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
+    model_name = "TheBloke/SOLAR-10.7B-Instruct-v1.0-uncensored-GPTQ"
+    model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
     tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
     load_llm_logger = logger.bind(model=model_name)
     load_llm_logger.success("LLM Loaded.")
