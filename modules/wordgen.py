@@ -7,8 +7,11 @@ import json
 from loguru import logger
 import discord
 import torch
-from transformers import AutoProcessor, LlavaForConditionalGeneration, LlamaTokenizerFast, LlamaForCausalLM
+from transformers import AutoProcessor, LlavaForConditionalGeneration
 from transformers.utils import logging as translogging
+from exllamav2 import ExLlamaV2, ExLlamaV2Cache_8bit, ExLlamaV2Tokenizer, ExLlamaV2Config
+from exllamav2.generator import ExLlamaV2BaseGenerator, ExLlamaV2Sampler
+from huggingface_hub import snapshot_download
 from modules.settings import SETTINGS
 import warnings
 from PIL import Image
@@ -26,11 +29,19 @@ wordgen_user_history = {}  # This dict holds the histories for the users.
 async def load_llm():
     """loads the llm"""
     model_name = "TheBloke/SOLAR-10.7B-Instruct-v1.0-uncensored-GPTQ"
-    model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
-    tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
+    snapshot_download(model_name, local_dir="models/llm/solar", local_dir_use_symlinks=False)
+
+    config = ExLlamaV2Config()
+    config.model_dir = "models/llm/solar"
+    config.prepare()
+    model = ExLlamaV2(config)
+    cache = ExLlamaV2Cache_8bit(model, lazy=True)
+    model.load_autosplit(cache)
+    tokenizer = ExLlamaV2Tokenizer(config)
+
     load_llm_logger = logger.bind(model=model_name)
     load_llm_logger.success("LLM Loaded.")
-    return model, tokenizer
+    return model, tokenizer, cache
 
 
 async def get_defaults(idname):
@@ -109,15 +120,23 @@ class WordQueueObject:
 
                 else:
                     if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
-                        formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
+                        formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]} ### USER:\n{self.prompt}\n### ASSISTANT:\n'  # if there is no history, add the system prompt to the beginning
                     else:
-                        formatted_prompt = f'{userhistory}\nUSER:{self.prompt}\nASSISTANT:'
-                    inputs = self.tokenizer(formatted_prompt, return_tensors='pt').to("cuda")
+                        formatted_prompt = f'{userhistory}\n### USER:\n{self.prompt}\n### ASSISTANT:\n'
                     llm_generate_logger = logger.bind(user=self.user.name, prompt=self.prompt)
                     llm_generate_logger.info("WORDGEN Generate Started.")
-                    output = await asyncio.to_thread(self.model.generate, **inputs, max_new_tokens=2000, do_sample=True)
+                    generator = ExLlamaV2BaseGenerator(self.metatron.llm_model, self.metatron.llm_cache, self.metatron.llm_tokenizer)
+                    settings = ExLlamaV2Sampler.Settings()
+                    settings.temperature = 0.98
+                    settings.top_p = 0.37
+                    settings.top_k = 100
+                    settings.token_repetition_penalty = 1.18
+                    #settings.disallow_tokens(self.metatron.llm_tokenizer, [self.metatron.llm_tokenizer.eos_token_id])
+                    generator.warmup()
+                    result = generator.generate_simple(formatted_prompt, settings, 2000)
+
                     llm_generate_logger.debug("WORDGEN Generate Completed")
-                    result = self.tokenizer.decode(output[0], skip_special_tokens=True)
+
 
         response_index = result.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
         self.llm_response = result[response_index + len("ASSISTANT:"):].strip()

@@ -129,7 +129,9 @@ dependencies:
       - discord-py==2.3.2
       - einops==0.7.0
       - encodec==0.1.1
+      - git+https://github.com/turboderp/exllamav2/releases/download/v0.0.11/exllamav2-0.0.11+cu118-cp311-cp311-linux_x86_64.whl
       - git+https://github.com/One-sixth/fairseq.git@44800430a728c2216fd1cf1e8daa672f50dfacba
+      - fastparquet
       - frozenlist==1.4.0
       - fsspec==2023.10.0
       - funcy==2.0
@@ -143,6 +145,7 @@ dependencies:
       - lxml==4.9.3
       - multidict==6.0.4
       - multiprocess==0.70.15
+      - ninja
       - omegaconf==2.3.0
       - optimum==1.14.1
       - packaging==23.2
@@ -154,6 +157,7 @@ dependencies:
       - pyarrow==14.0.1
       - pyarrow-hotfix==0.5
       - pydub==0.25.1
+      - pygments
       - pyparsing==3.1.1
       - python-dateutil==2.8.2
       - pytz==2023.3.post1
@@ -172,6 +176,7 @@ dependencies:
       - tqdm==4.66.1
       - transformers==4.36.2
       - tzdata==2023.3
+      - websockets
       - xxhash==3.4.1
       - yarl==1.9.2
       - zipp==3.17.0
