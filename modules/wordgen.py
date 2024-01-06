@@ -29,7 +29,7 @@ wordgen_user_history = {}  # This dict holds the histories for the users.
 async def load_llm():
     """loads the llm"""
     model_name = "TheBloke/SOLAR-10.7B-Instruct-v1.0-uncensored-GPTQ"
-    snapshot_download(model_name, local_dir="models/llm/solar", local_dir_use_symlinks=False)
+    #snapshot_download(model_name, local_dir="models/llm/solar", local_dir_use_symlinks=False)
 
     config = ExLlamaV2Config()
     config.model_dir = "models/llm/solar"
