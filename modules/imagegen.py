@@ -192,7 +192,7 @@ class ImageQueueObject:
             images = await asyncio.to_thread(self.metatron.sd_pipeline, **inputs, num_inference_steps=self.steps, width=self.width, height=self.height)  # do the generate in a thread so as not to lock up the bot client
             end_time = time.time()
             self.generation_time = "{:.3f}".format(end_time - start_time)
-            self.metatron.sd_pipeline.unload_lora_weights()  # Unload the loras so they dont effect future gens if they dont change models.
+            self.metatron.sd_pipeline.disable_lora()  # Unload the loras so they dont effect future gens if they dont change models.
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
         self.image = await make_image_grid(images)  # Turn returned images into a single image
 
@@ -315,6 +315,7 @@ class ImageQueueObject:
                 self.metatron.sd_pipeline.load_lora_weights("./models/sd-loras", weight_name=lorafilename, adapter_name=loraname)
                 names.append(loraname)
                 weights.append(loraweight)
+
             self.metatron.sd_pipeline.set_adapters(names, adapter_weights=weights)
             self.processed_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', self.prompt)  # This removes the lora trigger from the users prompt so it doesnt effect the gen.
             with torch.no_grad():  # clear gpu memory cache
