@@ -102,7 +102,7 @@ class WordQueueObject:
             with torch.no_grad():
                 if tempimage:
                     multimodal_name = "llava-hf/llava-1.5-7b-hf"
-                    multimodal_model = await asyncio.to_thread(LlavaForConditionalGeneration.from_pretrained, multimodal_name, torch_dtype=torch.float16, low_cpu_mem_usage=False, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
+                    multimodal_model = await asyncio.to_thread(LlavaForConditionalGeneration.from_pretrained, multimodal_name, torch_dtype=torch.float16, load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
                     multimodal_tokenizer = AutoProcessor.from_pretrained(multimodal_name)
                     if self.user.id not in self.metatron.llm_user_history or not self.metatron.llm_user_history[self.user.id]:
                         formatted_prompt = f'{llm_defaults["wordsystemprompt"][0]}\n\nUSER:<image>{self.prompt}\nASSISTANT:'  # if there is no history, add the system prompt to the beginning
