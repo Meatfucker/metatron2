@@ -124,7 +124,7 @@ dependencies:
       - compel==2.0.2
       - cython==3.0.5
       - datasets==2.15.0
-      - diffusers==0.23.1
+      - diffusers==0.24.0
       - dill==0.3.7
       - discord-py==2.3.2
       - einops==0.7.0
