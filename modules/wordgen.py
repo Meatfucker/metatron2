@@ -186,7 +186,7 @@ class WordQueueObject:
         for chunk in message_chunks:
             chunk_message = await self.channel.send(chunk)
             self.metatron.llm_chunks_messages[self.user.id].append(chunk_message)
-        new_message = await self.channel.send(view=Wordgenbuttons(self))  # send the message with the llm buttons
+        new_message = await self.channel.send(self.user.mention, view=Wordgenbuttons(self))  # send the message with the llm buttons
         self.metatron.llm_view_last_message[self.user.id] = new_message  # track the message id of the last set of llm buttons for each user
         llm_reply_logger = logger.bind(user=self.user.name, prompt=self.prompt)
         llm_reply_logger.success("WORDGEN Reply")
