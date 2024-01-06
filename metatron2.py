@@ -66,7 +66,6 @@ class MetatronClient(discord.Client):
         self.sd_xl_loaded_model = None
         self.sd_xl_loaded_refiner = None
 
-
     async def setup_hook(self):
         """This loads the various models before logging in to discord"""
 
@@ -105,7 +104,6 @@ class MetatronClient(discord.Client):
                 for style in sd_styles_list:
                     self.sd_style_choices.append(app_commands.Choice(name=style, value=style))
 
-
         if SETTINGS["enablesdxl"][0] == "True":
             sdxl_model_list = await load_sdxl_models_list()  # get the list of available models to build the discord interface with
             for model in sdxl_model_list:
@@ -113,7 +111,6 @@ class MetatronClient(discord.Client):
             sd_xl_loras_list = await load_sdxl_loras_list()  # get the list of available loras to build the interface with
             for lora in sd_xl_loras_list:
                 self.sd_xl_loras_choices.append(app_commands.Choice(name=lora, value=lora))
-
 
         self.loop.create_task(client.process_queue())  # start queue
         logger.info("Logging in...")
@@ -259,7 +256,6 @@ async def xl_imagegen(interaction: discord.Interaction, prompt: str, prompt_2: O
         model_selection = model_choice.name
     if lora_choice is not None:
         prompt = f"{prompt}<lora:{lora_choice.name}:1>"
-
 
     xlimagegen_request = ImageXLQueueObject("xlimagegen", client, interaction.user, interaction.channel, prompt, prompt_2, negative_prompt, negative_prompt_2, model_selection, batch_size, seed, steps, width, height, use_defaults)
     if await client.is_room_in_queue(interaction.user.id):

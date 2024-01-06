@@ -61,9 +61,15 @@ class VoiceQueueObject:
         else:
             if self.voice_file is not None:  # If there is a voice file, include in the generation call.
                 voice_path = f'models/voices/{self.voice_file}'
+                start_time = time.time()
                 audio_array = await asyncio.to_thread(generate_audio, self.prompt, voice_path, silent=True)
+                end_time = time.time()
+                self.generation_time = "{:.3f}".format(end_time - start_time)
             else:
+                start_time = time.time()
                 audio_array = await asyncio.to_thread(generate_audio, self.prompt, silent=True)
+                end_time = time.time()
+                self.generation_time = "{:.3f}".format(end_time - start_time)
 
         speakgen_logger.debug("SPEAKGEN Generate finished")
 

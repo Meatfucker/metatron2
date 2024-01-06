@@ -130,10 +130,8 @@ class WordQueueObject:
                     settings.top_p = 0.37
                     settings.top_k = 100
                     settings.token_repetition_penalty = 1.18
-                    result = await asyncio.to_thread(generator.generate_simple,formatted_prompt, settings, 2000)
-
+                    result = await asyncio.to_thread(generator.generate_simple, formatted_prompt, settings, 2000)
                     llm_generate_logger.debug("WORDGEN Generate Completed")
-
 
         response_index = result.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
         self.llm_response = result[response_index + len("ASSISTANT:"):].strip()
