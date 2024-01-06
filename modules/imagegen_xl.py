@@ -121,7 +121,7 @@ async def get_defaults(idname):
 
 
 class ImageXLQueueObject:
-    def __init__(self, action, metatron, user, channel, prompt, prompt_2=None, negative_prompt=None, negative_prompt_2=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
+    def __init__(self, action, metatron, user, channel, prompt, prompt_2=None, negative_prompt=None, negative_prompt_2=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True, reroll=False):
         self.action = action  # This is the queue action to do
         self.metatron = metatron  # This is the discord client
         self.user = user  # The discord user variable, contains .name and .id
@@ -145,6 +145,7 @@ class ImageXLQueueObject:
         self.sd_defaults = None  # This holds the global defauls
         self.channel_defaults = None  # This holds the channel defaults
         self.generation_time = None  # The generation time in seconds
+        self.reroll = reroll
 
     @logger.catch()
     async def load_sd_xl(self):
@@ -263,9 +264,11 @@ class ImageXLQueueObject:
             self.height = int(SETTINGS["sdxlmaxres"][0])
         self.width = math.ceil(self.width / 8) * 8  # Dimensions have to be multiple of 8 or else SD shits itself.
         self.height = math.ceil(self.height / 8) * 8
-        if self.prompt is not None:
+        if self.prompt is not None and self.reroll is not True:
             if self.sd_defaults["imageprompt"][0] not in self.prompt:  # Combine the defaults with the users prompt and negative prompt.
                 self.prompt = f'{self.sd_defaults["imageprompt"][0]} {self.prompt}'
+        if self.reroll is True:
+            self.reroll = False
         if self.prompt_2 is not None:
             if self.sd_defaults["imageprompt"][0] not in self.prompt_2:  # Combine the defaults with the users prompt and negative prompt.
                 self.prompt_2 = f'{self.sd_defaults["imageprompt"][0]} {self.prompt_2}'
@@ -369,6 +372,7 @@ class Imagegenbuttons(discord.ui.View):
         """Jiggle last reply"""
         if self.imageobject.user.id == interaction.user.id:
             self.imageobject.prompt = jiggle_prompt(self.imageobject.prompt)
+            self.imageobject.reroll = True
             if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
                 await interaction.response.send_message("Jiggling...", ephemeral=True, delete_after=5)
                 self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1

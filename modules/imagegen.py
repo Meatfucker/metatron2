@@ -151,7 +151,7 @@ def jiggle_prompt(search_string):
 
 
 class ImageQueueObject:
-    def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, style=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True):
+    def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, style=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True, reroll=False):
         self.action = action  # This is the queue action to do
         self.metatron = metatron  # This is the discord client
         self.user = user  # The discord user variable, contains .name and .id
@@ -172,6 +172,7 @@ class ImageQueueObject:
         self.sd_defaults = None  # This holds the global defauls
         self.channel_defaults = None  # This holds the channel defaults
         self.generation_time = None  # The generation time in seconds.
+        self.reroll = reroll
 
     @torch.no_grad()
     async def generate(self):
@@ -192,7 +193,10 @@ class ImageQueueObject:
             images = await asyncio.to_thread(self.metatron.sd_pipeline, **inputs, num_inference_steps=self.steps, width=self.width, height=self.height)  # do the generate in a thread so as not to lock up the bot client
             end_time = time.time()
             self.generation_time = "{:.3f}".format(end_time - start_time)
-            self.metatron.sd_pipeline.disable_lora()  # Unload the loras so they dont effect future gens if they dont change models.
+            active_adapters = self.metatron.sd_pipeline.get_active_adapters()
+            self.metatron.sd_pipeline.delete_adapters(active_adapters)
+            self.metatron.sd_pipeline.unload_lora_weights()  # Unload the loras so they dont effect future gens if they dont change models.
+
         sd_generate_logger.debug("IMAGEGEN Generate Finished.")
         self.image = await make_image_grid(images)  # Turn returned images into a single image
 
@@ -246,9 +250,11 @@ class ImageQueueObject:
             self.height = int(SETTINGS["maxres"][0])
         self.width = math.ceil(self.width / 8) * 8  # Dimensions have to be multiple of 8 or else SD shits itself.
         self.height = math.ceil(self.height / 8) * 8
-        if self.prompt is not None:
+        if self.prompt is not None and self.reroll is not True:
             if self.sd_defaults["imageprompt"][0] not in self.prompt:  # Combine the defaults with the users prompt and negative prompt.
                 self.prompt = f'{self.sd_defaults["imageprompt"][0]} {self.prompt}'
+        if self.reroll is True:
+            self.reroll = False
         if self.negative_prompt is not None:
             if self.sd_defaults["imagenegprompt"][0] not in self.processed_negative_prompt:
                 self.processed_negative_prompt = f'{self.sd_defaults["imagenegprompt"][0]} {self.processed_negative_prompt}'
@@ -312,6 +318,7 @@ class ImageQueueObject:
                 loraname, loraweight = match
                 loraweight = float(loraweight)  # Convert to a float if needed
                 lorafilename = f'{loraname}.safetensors'
+                self.metatron.sd_pipeline.unload_lora_weights()
                 self.metatron.sd_pipeline.load_lora_weights("./models/sd-loras", weight_name=lorafilename, adapter_name=loraname)
                 names.append(loraname)
                 weights.append(loraweight)
@@ -365,6 +372,8 @@ class Imagegenbuttons(discord.ui.View):
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rerolls last reply"""
         if self.imageobject.user.id == interaction.user.id:
+            logger.debug(self.imageobject.prompt)
+            logger.debug(self.imageobject.processed_prompt)
             if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
                 self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
@@ -376,7 +385,11 @@ class Imagegenbuttons(discord.ui.View):
     async def jiggle(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Jiggles last reply"""
         if self.imageobject.user.id == interaction.user.id:
+            self.imageobject.reroll = True
+            logger.debug(self.imageobject.prompt)
+            logger.debug(self.imageobject.processed_prompt)
             self.imageobject.prompt = jiggle_prompt(self.imageobject.prompt)
+            logger.debug(self.imageobject.prompt)
             if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
                 await interaction.response.send_message("Jiggling...", ephemeral=True, delete_after=5)
                 self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
