@@ -342,9 +342,9 @@ class ImageXLQueueObject:
     async def respond(self):
         sanitized_prompt = re.sub(r'[^\w\s\-.]', '', self.processed_prompt)[:100]
         if SETTINGS["saveinjpg"][0] == "True":  # Save and upload in jpg if enabled, otherwise PNG
-            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Prompt_2:`{self.prompt_2}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` Time:`{self.generation_time} seconds`", file=discord.File(self.image, filename=f"{sanitized_prompt}.jpg"), view=Imagegenbuttons(self))
+            await self.channel.send(content=f"User: `{self.user.mention}` Prompt:`{self.prompt}` Prompt_2:`{self.prompt_2}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` Time:`{self.generation_time} seconds`", file=discord.File(self.image, filename=f"{sanitized_prompt}.jpg"), view=Imagegenbuttons(self))
         else:
-            await self.channel.send(content=f"User: `{self.user.name}` Prompt:`{self.prompt}` Prompt_2:`{self.prompt_2}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` Time:`{self.generation_time} seconds`", file=discord.File(self.image, filename=f"{sanitized_prompt}.png"), view=Imagegenbuttons(self))
+            await self.channel.send(content=f"User: `{self.user.mention}` Prompt:`{self.prompt}` Prompt_2:`{self.prompt_2}` Negative:`{self.negative_prompt}` Model:`{self.model}` Batch Size:`{self.batch_size}` Seed:`{self.seed}` Steps:`{self.steps}` Width:`{self.width}` Height:`{self.height}` Time:`{self.generation_time} seconds`", file=discord.File(self.image, filename=f"{sanitized_prompt}.png"), view=Imagegenbuttons(self))
         imagegenreply_logger = logger.bind(user=self.user.name, prompt=self.prompt, prompt_2=self.prompt_2, negativeprompt=self.negative_prompt, model=self.model)
         imagegenreply_logger.success("IMAGEGEN Replied")
 
