@@ -88,7 +88,6 @@ class WordQueueObject:
         tempimage = None
         if self.reroll is True:
             await self.delete_last_history_pair()
-            self.reroll = False
         if self.image_url:
             image_url = self.image_url[0]  # Consider the first image URL found
             response = requests.get(image_url)
@@ -171,14 +170,14 @@ class WordQueueObject:
                 pass
 
         if self.user.id in self.metatron.llm_chunks_messages:  # If its a reroll, delete the old messages
+
             for chunk_message in self.metatron.llm_chunks_messages[self.user.id]:
                 if self.reroll:
                     try:
                         await chunk_message.delete()
                     except discord.NotFound:
                         pass  # Message not found, might have been deleted already
-                    finally:
-                        self.reroll = False
+            self.reroll = False
             del self.metatron.llm_chunks_messages[self.user.id]
 
         message_chunks = [self.llm_response[i:i + 1500] for i in range(0, len(self.llm_response), 1500)]  # Send and track the previously sent messages in case we have to delete them for reroll.
