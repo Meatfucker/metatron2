@@ -7,6 +7,7 @@ import re
 import random
 import gc
 import time
+import json
 from datetime import datetime
 
 import diffusers.utils.logging
@@ -15,6 +16,7 @@ from loguru import logger
 from PIL import Image
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, LCMScheduler
 import discord
+import jsonlines
 from modules.settings import SETTINGS
 
 
@@ -74,6 +76,26 @@ async def make_image_grid(images):
         composite_image.save(composite_image_bytes, format='PNG')
     composite_image_bytes.seek(0)  # Return to the beginning of the file object before we return it.
     return composite_image_bytes
+
+def jiggle_prompt(search_string):
+    found_words = {}
+    updated_string = search_string.split()  # Create a list to store updated words
+    with jsonlines.open('modules/thesaurus.jsonl') as reader:
+        for line in reader:
+            for i, word in enumerate(updated_string):
+                if len(word) >= 3:  # Check if word is 3 letters or longer
+                    if 'word' in line and word == line['word']:
+                        if 'synonyms' in line and line['synonyms'] and isinstance(line['synonyms'], list):
+                            if word not in found_words:
+                                found_words[word] = random.choice(line['synonyms'])
+                            else:
+                                existing_synonym = found_words[word]
+                                new_synonym = random.choice(line['synonyms'])
+                                selected_synonym = random.choice([existing_synonym, new_synonym])
+                                found_words[word] = selected_synonym
+                                updated_string[i] = selected_synonym
+
+    return ' '.join(updated_string)  # Return the updated string
 
 
 @logger.catch()
@@ -337,6 +359,18 @@ class Imagegenbuttons(discord.ui.View):
         if self.imageobject.user.id == interaction.user.id:
             if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
+                self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
+                await self.imageobject.metatron.generation_queue.put(self.imageobject)
+            else:
+                await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
+
+    @discord.ui.button(label='Jiggle', emoji="🔀", style=discord.ButtonStyle.grey)
+    async def jiggle(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Jiggle last reply"""
+        if self.imageobject.user.id == interaction.user.id:
+            self.imageobject.prompt = jiggle_prompt(self.imageobject.prompt)
+            if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
+                await interaction.response.send_message("Jiggling...", ephemeral=True, delete_after=5)
                 self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.imageobject.metatron.generation_queue.put(self.imageobject)
             else:
