@@ -151,6 +151,12 @@ def jiggle_prompt(search_string):
 
     return ' '.join(updated_string)  # Return the updated string
 
+def get_random_artist_prompt():
+    with open('modules/artist.json', 'r') as file:
+        data = json.load(file)
+        selected_artist = random.choice(data)
+        return selected_artist.get('prompt')
+
 
 class ImageQueueObject:
     def __init__(self, action, metatron, user, channel, prompt, negative_prompt=None, style=None, model=None, batch_size=None, seed=None, steps=None, width=None, height=None, use_defaults=True, reroll=False):
@@ -174,7 +180,8 @@ class ImageQueueObject:
         self.sd_defaults = None  # This holds the global defauls
         self.channel_defaults = None  # This holds the channel defaults
         self.generation_time = None  # The generation time in seconds.
-        self.reroll = reroll
+        self.reroll = reroll  # Whether this is a reroll.
+        self.last_artist =  None  # Track the last artist prompt used so it can be removed when a new one is added.
 
     @torch.no_grad()
     async def generate(self):
@@ -371,8 +378,6 @@ class Imagegenbuttons(discord.ui.View):
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rerolls last reply"""
         if self.imageobject.user.id == interaction.user.id:
-            logger.debug(self.imageobject.prompt)
-            logger.debug(self.imageobject.processed_prompt)
             if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
                 await interaction.response.send_message("Rerolling...", ephemeral=True, delete_after=5)
                 self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
@@ -385,12 +390,26 @@ class Imagegenbuttons(discord.ui.View):
         """Jiggles last reply"""
         if self.imageobject.user.id == interaction.user.id:
             self.imageobject.reroll = True
-            logger.debug(self.imageobject.prompt)
-            logger.debug(self.imageobject.processed_prompt)
             self.imageobject.prompt = jiggle_prompt(self.imageobject.prompt)
-            logger.debug(self.imageobject.prompt)
             if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
                 await interaction.response.send_message("Jiggling...", ephemeral=True, delete_after=5)
+                self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
+                await self.imageobject.metatron.generation_queue.put(self.imageobject)
+            else:
+                await interaction.response.send_message("Queue limit reached, please wait until your current gen or gens finish")
+
+    @discord.ui.button(label='Artist', emoji="🎨", style=discord.ButtonStyle.grey)
+    async def artist(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Jiggles last reply"""
+        if self.imageobject.user.id == interaction.user.id:
+            self.imageobject.reroll = True
+            if self.imageobject.last_artist is not None:
+                self.imageobject.prompt = self.imageobject.prompt.replace(f'. {self.imageobject.last_artist}', '')
+            self.imageobject.last_artist = get_random_artist_prompt()
+
+            self.imageobject.prompt = f'{self.imageobject.prompt}. {self.imageobject.last_artist}'
+            if await self.imageobject.metatron.is_room_in_queue(self.imageobject.user.id):
+                await interaction.response.send_message("Adding artist...", ephemeral=True, delete_after=5)
                 self.imageobject.metatron.generation_queue_concurrency_list[interaction.user.id] += 1
                 await self.imageobject.metatron.generation_queue.put(self.imageobject)
             else:
