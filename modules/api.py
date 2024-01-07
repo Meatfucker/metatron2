@@ -100,7 +100,7 @@ class ApiImageQueueObject:
         self.sd_defaults = None  # This holds the global defauls
         self.channel_defaults = None  # This holds the channel defaults
         self.payload = {}
-        self.generation_time  # the generation time in seconds.
+        self.generation_time = None  # the generation time in seconds.
 
     async def generate(self):
         """this generates the request, tiles the images, and returns them as a single image"""

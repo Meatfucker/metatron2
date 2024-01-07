@@ -58,11 +58,13 @@ async def load_embeddings_list():
                 embeddings.append(token_name)
     return embeddings
 
+
 async def load_styles_list():
     with open("defaults/styles.json", 'r') as file:
-            data = json.load(file)
-            styles = [item['name'] for item in data if 'name' in item]
+        data = json.load(file)
+        styles = [item['name'] for item in data if 'name' in item]
     return styles
+
 
 async def load_sd(model=None):
     """Load a sd model, returning the pipeline object and the compel processor object for the pipeline"""
@@ -83,8 +85,7 @@ async def load_sd(model=None):
     load_sd_logger = logger.bind(model=model_id)
     load_sd_logger.success("SD Model Loaded.")
     compel_proc = Compel(tokenizer=pipeline.tokenizer, text_encoder=pipeline.text_encoder, truncate_long_prompts=False)  # create the compel processor object for the pipeline
-    with torch.no_grad():  # clear gpu memory cache
-        torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
     gc.collect()  # clear python memory
     return pipeline, compel_proc, model
 
@@ -128,6 +129,7 @@ async def get_defaults(idname):
     except FileNotFoundError:
         return None
     return defaults
+
 
 def jiggle_prompt(search_string):
     found_words = {}
@@ -216,15 +218,13 @@ class ImageQueueObject:
             if self.metatron.sd_loaded_model != self.model:  # Only load the model if we dont already have it loaded
                 self.metatron.sd_pipeline, self.metatron.sd_compel_processor, self.metatron.sd_loaded_model = await load_sd(self.model)
                 self.metatron.sd_loaded_embeddings = []  # Since we loaded a new model, clear the loaded embeddings list
-                with torch.no_grad():  # clear gpu memory cache
-                    torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
                 gc.collect()  # clear python memory
         else:
             if self.metatron.sd_loaded_model != self.sd_defaults["imagemodel"][0]:  # If the current model isnt the default model, load it.
                 self.metatron.sd_pipeline, self.metatron.sd_compel_processor, self.metatron.sd_loaded_model = await load_sd(self.sd_defaults["imagemodel"][0])
                 self.metatron.sd_loaded_embeddings = []  # Since we loaded a new model, clear the loaded embeddings list
-            with torch.no_grad():  # clear gpu memory cache
-                torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
             gc.collect()  # clear python memory
 
     async def enforce_defaults_and_limits(self):
@@ -325,8 +325,7 @@ class ImageQueueObject:
 
             self.metatron.sd_pipeline.set_adapters(names, adapter_weights=weights)
             self.processed_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', self.prompt)  # This removes the lora trigger from the users prompt so it doesnt effect the gen.
-            with torch.no_grad():  # clear gpu memory cache
-                torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
             gc.collect()  # clear python memory
 
     async def load_ti(self):

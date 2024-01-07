@@ -34,6 +34,7 @@ async def load_sdxl_models_list():
                 models.append(models_file.name)
     return models
 
+
 @logger.catch()
 async def load_sdxl_refiners_list():
     """Get list of models for user interface"""
@@ -44,6 +45,7 @@ async def load_sdxl_refiners_list():
             if models_file.name.endswith(".safetensors"):
                 models.append(models_file.name)
     return models
+
 
 @logger.catch()
 async def load_sdxl_loras_list():
@@ -56,6 +58,7 @@ async def load_sdxl_loras_list():
                 token_name = f"{loras_file.name[:-12]}"
                 loras.append(token_name)
     return loras
+
 
 @logger.catch()
 async def make_image_grid(images):
@@ -76,6 +79,7 @@ async def make_image_grid(images):
         composite_image.save(composite_image_bytes, format='PNG')
     composite_image_bytes.seek(0)  # Return to the beginning of the file object before we return it.
     return composite_image_bytes
+
 
 def jiggle_prompt(search_string):
     found_words = {}
@@ -160,7 +164,6 @@ class ImageXLQueueObject:
 
                 model_id = f'./models/sd-xl/{self.model}'
                 self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="lpw_stable_diffusion_xl")
-
         else:
             sd_model_list = await load_sdxl_models_list()
             if sd_model_list is not None:   # This loads a checkpoint file
@@ -173,15 +176,10 @@ class ImageXLQueueObject:
                     self.metatron.sd_xl_pipeline = await asyncio.to_thread(StableDiffusionXLPipeline.from_single_file, model_id, load_safety_checker=False, torch_dtype=torch.float16, use_safetensors=True, custom_pipeline="lpw_stable_diffusion_xl")
         self.metatron.sd_xl_pipeline.enable_model_cpu_offload()
         self.metatron.sd_xl_loaded_model = self.model
-
-
         load_sd_logger = logger.bind(model=model_id)
         load_sd_logger.success("SDXL Model Loaded.")
-
-        with torch.no_grad():  # clear gpu memory cache
-            torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
         gc.collect()  # clear python memory
-
 
     async def load_sdxl_lora(self):
         """ This loads a lora and applies it to a pipeline"""
@@ -200,7 +198,6 @@ class ImageXLQueueObject:
                     weights.append(loraweight)
                 self.metatron.sd_xl_pipeline.set_adapters(names, adapter_weights=weights)
                 self.processed_prompt = re.sub(r'<lora:([^\s:]+):([\d.]+)>', '', self.prompt)  # This removes the lora trigger from the users prompt so it doesnt effect the gen.
-
                 torch.cuda.empty_cache()
                 gc.collect()  # clear python memory
 
@@ -229,15 +226,13 @@ class ImageXLQueueObject:
     async def load_request_or_default_model(self):
         if self.model is not None:  # if a model has been selected, create and load a fresh pipeline and compel processor
             if self.metatron.sd_xl_loaded_model != self.model:  # Only load the model if we dont already have it loaded
-                with torch.no_grad():  # clear gpu memory cache
-                    torch.cuda.empty_cache()
-                    await self.load_sd_xl()
+                torch.cuda.empty_cache()
+                await self.load_sd_xl()
         else:
             if self.metatron.sd_xl_loaded_model != self.sd_defaults["sdxlmodel"][0]:  # If the current model isnt the default model, load it.
                 self.model = self.sd_defaults["sdxlmodel"][0]
-                with torch.no_grad():  # clear gpu memory cache
-                    torch.cuda.empty_cache()
-                    await self.load_sd_xl()
+                torch.cuda.empty_cache()
+                await self.load_sd_xl()
             gc.collect()  # clear python memory
 
     @logger.catch()
@@ -283,14 +278,9 @@ class ImageXLQueueObject:
         else:
             self.processed_negative_prompt_2 = self.sd_defaults["imagenegprompt"][0]
 
-
     @logger.catch()
     async def get_inputs(self):
         """This multiples the prompt by the batch size and creates the weight embeddings"""
-        if self.seed is None:  # Use a random seed if one isnt supplied
-            generator = [torch.Generator("cuda").manual_seed(random.randint(-2147483648, 2147483647)) for _ in range(self.batch_size)]
-        else:
-            generator = [torch.Generator("cuda").manual_seed(self.seed + i) for i in range(self.batch_size)]
         await self.moderate_prompt()  # Moderate prompt according to settings.
         prompts = self.batch_size * [self.processed_prompt]
         inputs_dict = {}
@@ -307,7 +297,6 @@ class ImageXLQueueObject:
 
         return inputs_dict
 
-
     @logger.catch()
     async def moderate_prompt(self):
         """Removes all words in the imagebannedwords from prompt, adds all words in imagenegprompt to negativeprompt"""
@@ -323,8 +312,6 @@ class ImageXLQueueObject:
         if self.negative_prompt_2 is None:
             self.processed_negative_prompt_2 = ""
         self.processed_negative_prompt_2 = self.processed_negative_prompt_2 + " " + imagenegprompt_string
-
-
 
     @logger.catch()
     async def save(self):

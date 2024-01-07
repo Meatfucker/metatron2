@@ -29,7 +29,7 @@ wordgen_user_history = {}  # This dict holds the histories for the users.
 async def load_llm():
     """loads the llm"""
     model_name = "TheBloke/SOLAR-10.7B-Instruct-v1.0-uncensored-GPTQ"
-    #snapshot_download(model_name, local_dir="models/llm/solar", local_dir_use_symlinks=False)
+    snapshot_download(model_name, local_dir="models/llm/solar", local_dir_use_symlinks=False)
 
     config = ExLlamaV2Config()
     config.model_dir = "models/llm/solar"
@@ -136,6 +136,7 @@ class WordQueueObject:
         response_index = result.rfind("ASSISTANT:")  # this and the next line extract the bots response for posting to the channel
         self.llm_response = result[response_index + len("ASSISTANT:"):].strip()
         await self.save_history()  # save the response to the users history
+        torch.cuda.empty_cache()
         gc.collect()
 
     async def summary(self):
@@ -157,6 +158,7 @@ class WordQueueObject:
             await self.channel.send(message)
         llm_summary_logger = logger.bind(user=self.user.name)
         llm_summary_logger.success("SUMMARY Reply")
+        torch.cuda.empty_cache()
         gc.collect()
 
     async def respond(self):
